@@ -108,145 +108,20 @@ public class Squadron {
         Squadron.squadLeader = vessel;
     }
 
-    public void getAndSetUpdatesFromLeader(SpaceCenter spaceCenter, Connection connection) {
+// saving as an example of using a callback
+//
+//        Stream<Boolean> brakes = connection.addStream(control, "getBrakes");
+//        brakes.addCallback(
+//                (Boolean x) -> {
+//                    logger.info("Brakes set to {}" + x);
+//                    // could set brake control here but let's be cool
+//                    // each callback will need to update the config and apply it
+//                    config.setBrakes(x);
+//                    setUpdatesFromLeader(spaceCenter, connection, config);
+//                });
+//        brakes.start();
 
-        SpaceCenter.Control control = null;
-        SpaceCenter.Flight flight = null;
-        SpaceCenter.AutoPilot autoPilot = null;
-        FlightConfig config = new FlightConfig();
-
-        try {
-
-            control = getSquadLeader().getControl();
-            flight = getSquadLeader().flight(getSquadLeader().getSurfaceReferenceFrame());
-            logger.info("Flight target direction: {} ", flight.getDirection().toString());
-
-            Stream<Boolean> brakes = connection.addStream(control, "getBrakes");
-            brakes.addCallback(
-                    (Boolean x) -> {
-                        logger.info("Brakes set to {}" + x);
-                        // could set brake control here but let's be cool
-                        // each callback will need to update the config and apply it
-                        config.setBrakes(x);
-                        setUpdatesFromLeader(spaceCenter, connection, config);
-                    });
-            brakes.start();
-
-            Stream<Boolean> sasMode = connection.addStream(control, "getSAS");
-            sasMode.addCallback(
-                    (Boolean x) -> {
-                        logger.info("SAS set to {}", x);
-                        config.setSas(x);
-                        setUpdatesFromLeader(spaceCenter, connection, config);
-                    });
-            sasMode.start();
-
-            Stream<Boolean> gear = connection.addStream(control, "getGear");
-            gear.addCallback(
-                    (Boolean x) -> {
-                        logger.info("Gear set to {}" + x);
-                        // could set brake control here but let's be cool
-                        // each callback will need to update the config and apply it
-                        config.setGear(x);
-                        logger.info("Gear in config is {}" + x);
-                        setUpdatesFromLeader(spaceCenter, connection, config);
-                    });
-            gear.start();
-
-            Stream<Float> pitch = connection.addStream(flight, "getPitch");
-            pitch.setRate(streamRate);
-            pitch.addCallback(
-                    (Float x) -> {
-                        config.setPitch(x);
-                        logger.info("Pitch set to {}", x);
-                        setUpdatesFromLeader(spaceCenter, connection, config);
-                    });
-            pitch.start();
-
-            Stream<Float> roll = connection.addStream(flight, "getRoll");
-            roll.setRate(streamRate);
-            roll.addCallback(
-                    (Float x) -> {
-                        config.setRoll(x);
-                        logger.info("Roll set to {}", x);
-                        setUpdatesFromLeader(spaceCenter, connection, config);
-                    });
-            roll.start();
-
-            // /* flight telemetry
-            Stream<Float> heading = connection.addStream(flight, "getHeading");
-            heading.setRate(streamRate);
-            heading.addCallback(
-                    (Float x) -> {
-                        config.setHeading(x);
-                        logger.info("Pitch set to {}", x);
-                        setUpdatesFromLeader(spaceCenter, connection, config);
-                    });
-            heading.start();
-
-
-
-
-//            Stream<Triplet<Double, Double, Double>> direction = connection.addStream(flight, "getDirection");
-//            direction.addCallback(
-//                    (Triplet<Double, Double, Double> x) -> {
-//                        logger.info("Direction set to {}", x);
-//                        config.setDirection(x);
-//                        logger.info("Direction in config is: {}", config.getDirection().toString());
-//                        setUpdatesFromLeader(spaceCenter, connection, config);
-//                    });
-//            direction.start();
-
-            /* hard controls, can deviate
-            Stream<Float> pitch = connection.addStream(control, "getPitch");
-            pitch.setRate(streamRate);
-            pitch.addCallback(
-                    (Float x) -> {
-                        config.setPitch(x);
-                        logger.info("Pitch set to {}", x);
-                        setUpdatesFromLeader(spaceCenter, connection, config);
-                    });
-            pitch.start();
-
-            Stream<Float> yaw = connection.addStream(control, "getYaw");
-            yaw.setRate(streamRate);
-            yaw.addCallback(
-                    (Float x) -> {
-                        config.setYaw(x);
-                        logger.info("Yaw set to {}", x);
-                        setUpdatesFromLeader(spaceCenter, connection, config);
-                    });
-            yaw.start();
-
-            Stream<Float> roll = connection.addStream(control, "getRoll");
-            roll.setRate(streamRate);
-            roll.addCallback(
-                    (Float x) -> {
-                        config.setRoll(x);
-                        logger.info("Roll set to {}", x);
-                        setUpdatesFromLeader(spaceCenter, connection, config);
-                    });
-            roll.start();
-            */
-
-            Stream<Float> throttle = connection.addStream(control, "getThrottle");
-            throttle.addCallback(
-                    (Float x) -> {
-                        config.setThrottle(x);
-                        logger.info("Throttle set to {}", x);
-                        setUpdatesFromLeader(spaceCenter, connection, config);
-                    });
-            throttle.start();
-        }
-        catch (RPCException e) {
-            e.printStackTrace();
-        }
-        catch (StreamException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void setUpdatesFromLeader(SpaceCenter spaceCenter, Connection connection, FlightConfig config) {
+    public void setUpdatesFromLeader(SpaceCenter spaceCenter, Connection connection) {
 
         // set all values in the config
         for(SpaceCenter.Vessel vessel : getSquadronVessels()) {
@@ -264,32 +139,6 @@ public class Squadron {
                     // ap.setAttenuationAngle(new Triplet<>(0.25, 2.0, 0.25));
                     ap.setAttenuationAngle(attenuationAngle);
                     ap.engage();
-
-                    // control updates
-                    control.setBrakes(config.isBrakes());
-                    logger.info("Set brakes for vessel {} to {}", vessel.getName(), config.isBrakes());
-
-                    control.setSAS(config.getSas());
-                    logger.info("Set SAS for vessel {} to {}", vessel.getName(), config.getSas());
-
-                    control.setGear(config.isGear());
-                    logger.info("Set SAS for vessel {} to {}", vessel.getName(), config.isGear());
-
-                    control.setThrottle(config.getThrottle());
-                    logger.info("setting throttle to {}", config.getThrottle());
-
-                    // auto-pilot updates
-                    ap.setTargetPitch(config.getPitch());
-                    logger.info("setting pitch to {}", config.getPitch());
-
-//                    vessel.getControl().setYaw(config.getYaw());
-//                    logger.info("setting yaw to {}", config.getYaw());
-
-                    ap.setTargetRoll(config.getRoll());
-                    logger.info("setting roll to {}", config.getRoll());
-
-                    ap.setTargetHeading(config.getHeading());
-                    logger.info("setting heading to {}", config.getHeading());
 
 //                    vessel.getAutoPilot().setTargetDirection(config.getDirection());
 //                    logger.info("setting direction to {}", config.getDirection());
