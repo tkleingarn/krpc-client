@@ -86,109 +86,97 @@ public class RunSquadronChase {
         }
         spaceCenter.setActiveVessel(leader);
 
-        // leader lights trigger change in flight model
-        // if vessels are flying to target with SAS, no need to update autopilot every X ms
-        Stream<Boolean> lights = null;
-        try {
-            lights = connection.addStream(leadControl, "getLights");
-        } catch (StreamException e) {
-            e.printStackTrace();
-        }
-        lights.addCallback(
-                (Boolean x) -> {
-                    logger.info("Callback triggered, leader lights set to {}", x.toString());
 
-                        logger.info("leader lights {}, targeting leader", x.toString());
+        boolean lights = leadControl.getLights();
+        logger.info("Starting control system, leader lights are {}.", lights);
+        while(true) {
+
+            // if leader's lights have changed from last iteration, iterate through planes and change SASMode
+            if(lights != leadControl.getLights()) {
+                logger.info("Detected change in leader lights, changing flight modes for squadron.");
+                lights = leadControl.getLights();
+                try {
+                    for (SpaceCenter.Vessel vessel : vessels) {
+                        spaceCenter.setActiveVessel(vessel);
+                        logger.info("Active vessel {}", vessel);
+                        spaceCenter.setTargetVessel(leader);
+                        logger.info("Target vessel {}", leader);
+                        SpaceCenter.Control vesselControl = vessel.getControl();
+                        if (lights == true) {
+                            logger.info("Lights {}, setting vessel {} SASMode to TARGET", lights, vessel);
+                            vesselControl.setSASMode(SpaceCenter.SASMode.TARGET);
+                        } else {
+                            logger.info("Lights {}, setting vessel {} SASMode to STABILITY_ASSIST", lights, vessel);
+                            vesselControl.setSASMode(SpaceCenter.SASMode.STABILITY_ASSIST);
+                        }
+                    }
+                    // back to leader
+                    spaceCenter.setActiveVessel(leader);
+                } catch (RPCException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            // SASMode TARGET = chase the leader, only apply non-directional controls and rely on SAS target for flight
+            if(lights == true) {
+                logger.info("lights = {}, chasing leader", lights);
+                for (SpaceCenter.Vessel vessel : vessels) {
+                    SpaceCenter.Control vesselControl = null;
+                    SpaceCenter.AutoPilot vesselAutoPilot = null;
+                    if (!vessel.equals(leader)) {
                         try {
-                            for (SpaceCenter.Vessel vessel : vessels) {
-                                SpaceCenter.Control vesselControl = null;
-                                spaceCenter.setActiveVessel(vessel);
-                                spaceCenter.setTargetVessel(leader);
-                                vesselControl = vessel.getControl();
-                                if(x) {
-                                    vesselControl.setSASMode(SpaceCenter.SASMode.TARGET);
-                                } else {
-                                    vesselControl.setSASMode(SpaceCenter.SASMode.STABILITY_ASSIST);
-                                }
-                            }
-                            spaceCenter.setActiveVessel(leader);
+                            vesselControl = vessel.getControl();
+                            vesselAutoPilot = vessel.getAutoPilot();
+                            setNonDirectionalControls(leader, vessel, vesselControl, leadControl);
+                            vesselAutoPilot.engage();
                         } catch (RPCException e) {
                             e.printStackTrace();
                         }
+                    }
+                }
+                try {
+                    Thread.sleep(leadPollingIntervalMillis);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
 
-
-                    // lights on, follow the leader
-                    while(x) {
-                        logger.info("Lights should be on - leader lights set to {}", x.toString());
-                        for (SpaceCenter.Vessel vessel : vessels) {
-                            SpaceCenter.Control vesselControl = null;
-                            SpaceCenter.AutoPilot vesselAutoPilot = null;
-                            try {
-                                if(!leadControl.getLights()) {
-                                    break;
-                                }
-                                vesselControl = vessel.getControl();
-                                vesselAutoPilot = vessel.getAutoPilot();
-                                setNonDirectionalControls(leader, vessel, vesselControl, leadControl);
-                                vesselAutoPilot.engage();
-                            } catch (RPCException e) {
-                                e.printStackTrace();
-                            }
-                        }
+            // SASMode STABILITY_ASSIST = squadron flight, mimic the leader, apply all flight controls
+            else if(lights == false) {
+                logger.info("lights = {}, mimicking leader", lights);
+                for (SpaceCenter.Vessel vessel : vessels) {
+                    SpaceCenter.Control vesselControl = null;
+                    SpaceCenter.AutoPilot vesselAutoPilot = null;
+                    if (!vessel.equals(leader)) {
                         try {
-                            Thread.sleep(leadPollingIntervalMillis);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
+                            vesselControl = vessel.getControl();
+                            vesselAutoPilot = vessel.getAutoPilot();
+
+                            // set non-directional controls
+                            setNonDirectionalControls(leader, vessel, vesselControl, leadControl);
+                            // set flight telemetry targets
+                            vesselAutoPilot.setTargetPitch(leadFlightTelemetry.getPitch());
+                            vesselAutoPilot.setTargetRoll(leadFlightTelemetry.getRoll());
+                            vesselAutoPilot.setTargetHeading(leadFlightTelemetry.getHeading());
+                            vesselAutoPilot.setTargetDirection(leadFlightTelemetry.getDirection());
+                            vesselAutoPilot.engage();
+                        } catch (IllegalArgumentException e) {
+                        e.printStackTrace();
+                        logger.error("Vessel {} missing, removing from squadron vessels.", vessel.toString());
+                        // vessels.remove(vessel); //throws ConcurrentModificationException
+                        } catch (RPCException e) {
+                        e.printStackTrace();
                         }
                     }
-
-                    // could set brake control here but let's be cool
-                    // each callback will need to update the config and apply it
-
-                    // lights off - hopefully the callback will interrupt this loop
-                    while(!x) {
-                        logger.info("Lights should be off - leader lights set to", x.toString());
-                        for (SpaceCenter.Vessel vessel : vessels) {
-                            SpaceCenter.Control vesselControl = null;
-                            SpaceCenter.AutoPilot vesselAutoPilot = null;
-
-                            try {
-                                if(leadControl.getLights()) {
-                                    break;
-                                }
-                                vesselControl = vessel.getControl();
-                                vesselAutoPilot = vessel.getAutoPilot();
-                                if (!vessel.equals(leader)) {
-                                    // set non-directional controls
-                                    setNonDirectionalControls(leader, vessel, vesselControl, leadControl);
-
-                                    // squadron flight
-                                    vesselControl.setSASMode(SpaceCenter.SASMode.STABILITY_ASSIST);
-
-                                    // set flight telemetry targets
-                                    vesselAutoPilot.setTargetPitch(leadFlightTelemetry.getPitch());
-                                    vesselAutoPilot.setTargetRoll(leadFlightTelemetry.getRoll());
-                                    vesselAutoPilot.setTargetHeading(leadFlightTelemetry.getHeading());
-                                    vesselAutoPilot.setTargetDirection(leadFlightTelemetry.getDirection());
-                                    vesselAutoPilot.engage();
-                                }
-                            } catch (IllegalArgumentException e) {
-                                e.printStackTrace();
-                                logger.error("Vessel {} missing, removing from squadron vessels.", vessel.toString());
-                                // vessels.remove(vessel); //throws ConcurrentModificationException
-                            } catch (RPCException e){
-                                e.printStackTrace();
-                            }
-                        }
-                        // if the above does not work we could check leader lights and break out of the loop
-                        try {
-                            Thread.sleep(leadPollingIntervalMillis);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    } // end while loop polling leader
-                }); // end callback
-        lights.start();
+                }
+            }
+            // wait leadPollingIntervalMillis
+            try {
+                Thread.sleep(leadPollingIntervalMillis);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public static void setNonDirectionalControls(SpaceCenter.Vessel leader,
