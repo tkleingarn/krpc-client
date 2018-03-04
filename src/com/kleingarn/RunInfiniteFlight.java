@@ -34,13 +34,14 @@ public class RunInfiniteFlight {
     final static Triplet<Double, Double, Double> timeToPeak = new Triplet<>(2.8, 2.8, 2.8);
 
     // default value is 1 degree in each axis
-    final static Triplet<Double, Double, Double> attenuationAngle = new Triplet<>(1.0, 1.0, 1.0);
+    final static Triplet<Double, Double, Double> attenuationAngle = new Triplet<>(1.0, 3.0, 1.0);
     final static boolean tweakAp = true;
 
     final static String waterBiome = "Water";
 
     final static int pollingIntervalMillis = 1000;
-    final static int turnTimeMillis = 3000;
+    final static int turnTimeMillis = 5000;
+    final static int maxTurns = 5;
 
     // level
     // Current pitch 2.6546106, heading 113.08709, roll -89.046875
@@ -57,9 +58,9 @@ public class RunInfiniteFlight {
     // heading (float) – Target heading angle, in degrees between 0° and 360°.
 
     final static float pitchDuringTurn = 3.00f;
-    final static float headingChange = 30.0f;
-    final static float leftRollDuringTurn = -50.0f;
-    final static float rightRollDuringTurn = 170.0f;
+    final static float headingChange = 25.0f;
+    final static float leftRollDuringTurn = -45f;
+    final static float rightRollDuringTurn = 135f;
 
 
     public static void main(String[] args) throws IOException, RPCException {
@@ -90,6 +91,7 @@ public class RunInfiniteFlight {
             e.printStackTrace();
         }
 
+        int numTurns = 0;
         while (true) {
             try {
                 String biome = vessel.getBiome();
@@ -102,24 +104,31 @@ public class RunInfiniteFlight {
                         pitchHeadingRoll.getValue2());
                 float currentHeading = pitchHeadingRoll.getValue1();
 
-                // if you drift over water
-                if (biome.equals(waterBiome)) {
-                    logger.info("Over water");
-                    turn(vesselAutoPilot, vesselControl,
-                            pitchDuringTurn,
-                            (currentHeading - headingChange),
-                            leftRollDuringTurn);
-                    currentHeading = currentHeading - headingChange;
-                } else { // if you drift over land
-                    logger.info("Over land");
-                    turn(vesselAutoPilot, vesselControl,
-                            pitchDuringTurn,
-                            (currentHeading + headingChange),
-                            rightRollDuringTurn);
-                    currentHeading = currentHeading + headingChange;
+                if (numTurns < maxTurns) {
+                    // if you drift over water
+                    if (biome.equals(waterBiome)) {
+                        logger.info("Over water");
+                        turn(vesselAutoPilot, vesselControl,
+                                pitchDuringTurn,
+                                (currentHeading - headingChange),
+                                leftRollDuringTurn);
+                        numTurns++;
+                    } else { // if you drift over land
+                        logger.info("Over land");
+                        turn(vesselAutoPilot, vesselControl,
+                                pitchDuringTurn,
+                                (currentHeading + headingChange),
+                                rightRollDuringTurn);
+                        numTurns++;
+                    }
+                } else {
+                    logger.info("Levelling out.");
+                    for (int j=0; j<7; j++) {
+                        turn(vesselAutoPilot, vesselControl, 3.00f, currentHeading, 0);
+                    }
+                    numTurns = 0;
+                    sleep(20000);
                 }
-                logger.info("Levelling out.");
-                turn(vesselAutoPilot, vesselControl, 1.00f, currentHeading, 0);
             } catch (RPCException e) {
                 e.printStackTrace();
             } catch (IOException e) {
@@ -146,6 +155,7 @@ public class RunInfiniteFlight {
             vesselAutoPilot.setTargetPitch(targetPitch);
             vesselAutoPilot.setTargetHeading(targetHeading);
 //            vesselAutoPilot.setTargetRoll(targetRoll);
+//            vesselControl.setRoll(targetRoll);
             vesselAutoPilot.engage();
             sleep(turnTimeMillis);
             vesselAutoPilot.disengage();
