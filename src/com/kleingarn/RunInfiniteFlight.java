@@ -52,10 +52,14 @@ public class RunInfiniteFlight {
     //                                             full right roll = -180
     // targets
     // pitch 5, heading +/- 30, roll -30 left, -150 right
-    final static float pitchDuringTurn = 5.00f;
-    final static float headingChange = 30.f;
+
+    // pitch (float) – Target pitch angle, in degrees between -90° and +90°.
+    // heading (float) – Target heading angle, in degrees between 0° and 360°.
+
+    final static float pitchDuringTurn = 6.00f;
+    final static float headingChange = 35.f;
     final static float leftRollDuringTurn = -30.0f;
-    final static float rightRollDuringTurn = -150.0f;
+    final static float rightRollDuringTurn = 150.0f;
 
 
     public static void main(String[] args) throws IOException, RPCException {
@@ -138,6 +142,7 @@ public class RunInfiniteFlight {
                             float targetPitch,
                             float targetHeading,
                             float targetRoll) {
+        logger.info("Turning with pitch {}, heading {}, roll {}", targetPitch, targetHeading, targetRoll);
         try {
             vesselAutoPilot.setTargetPitch(targetPitch);
             vesselAutoPilot.setTargetHeading(targetHeading);
