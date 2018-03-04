@@ -2,8 +2,6 @@ package com.kleingarn;
 
 import krpc.client.Connection;
 import krpc.client.RPCException;
-import krpc.client.Stream;
-import krpc.client.StreamException;
 import krpc.client.services.KRPC;
 import krpc.client.services.SpaceCenter;
 import org.javatuples.Triplet;
@@ -68,8 +66,7 @@ public class RunSquadronChase {
 
             if (!vessel.equals(leader)) {
                 spaceCenter.setActiveVessel(vessel);
-                spaceCenter.setTargetVessel(leader); // UnsupportedOperationException: Cannot set SAS mode of vessel
-
+                spaceCenter.setTargetVessel(leader);
                 SpaceCenter.AutoPilot vesselAutoPilot = null;
                 if (tweakAp) {
                     try {
@@ -91,6 +88,7 @@ public class RunSquadronChase {
         logger.info("Starting control system, leader lights are {}.", lights);
         while(true) {
 
+            lights = leadControl.getLights();
             // if leader's lights have changed from last iteration, iterate through planes and change SASMode
             if(lights != leadControl.getLights()) {
                 logger.info("Detected change in leader lights, changing flight modes for squadron.");
@@ -98,19 +96,16 @@ public class RunSquadronChase {
                 try {
                     for (SpaceCenter.Vessel vessel : vessels) {
                         spaceCenter.setActiveVessel(vessel);
-                        logger.info("Active vessel {}", vessel);
                         spaceCenter.setTargetVessel(leader);
-                        logger.info("Target vessel {}", leader);
                         SpaceCenter.Control vesselControl = vessel.getControl();
                         if (lights == true) {
-                            logger.info("Lights {}, setting vessel {} SASMode to TARGET", lights, vessel);
                             vesselControl.setSASMode(SpaceCenter.SASMode.TARGET);
                         } else {
-                            logger.info("Lights {}, setting vessel {} SASMode to STABILITY_ASSIST", lights, vessel);
                             vesselControl.setSASMode(SpaceCenter.SASMode.STABILITY_ASSIST);
                         }
                     }
                     // back to leader
+                    // BUG: when you switch, other vessels lose their targets!
                     spaceCenter.setActiveVessel(leader);
                 } catch (RPCException e) {
                     e.printStackTrace();
@@ -128,7 +123,16 @@ public class RunSquadronChase {
                             vesselControl = vessel.getControl();
                             vesselAutoPilot = vessel.getAutoPilot();
                             setNonDirectionalControls(leader, vessel, vesselControl, leadControl);
+
+                            /**
+                             * BUG: All vessels have set the leader as their SAS target, and SAS is set to Target mode.
+                             * There's a bug here, when you switch back to the lead vessel, all other vessels lose track
+                             * of the leader. While other vessels' nav balls maintain "Target m/s", the SAS mod
+                             * switches back to stability assist. So this SHOULD work, but it currently doesn't.
+                             */
+                            vesselControl.setSASMode(SpaceCenter.SASMode.TARGET);
                             vesselAutoPilot.engage();
+
                         } catch (RPCException e) {
                             e.printStackTrace();
                         }
