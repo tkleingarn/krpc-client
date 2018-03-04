@@ -44,6 +44,7 @@ public class RunInfiniteFlight {
     final static int pollingIntervalMillis = 1000;
     final static int turnTimeMillis = 5000;
     final static int maxTurns = 3;
+    final static double minAltitudeAboveSurface = 500;
 
     // level
     // Current pitch 2.6546106, heading 113.08709, roll -89.046875
@@ -119,23 +120,23 @@ public class RunInfiniteFlight {
                     // if you drift over water
                     if (biome.equals(shoresBiome) || biome.equals(waterBiome)) {
                         logger.info("Over {}, turning left.", biome);
-                        turn(vesselAutoPilot, vesselControl,
+                        turn(vessel, vesselAutoPilot, vesselControl,
                                 pitchDuringTurn,
-                                (currentHeading - headingChange),
+                                (currentHeading -= headingChange),
                                 leftRollDuringTurn);
                         numTurns++;
                     } else { // if you drift over land
                         logger.info("Over land, turning right.");
-                        turn(vesselAutoPilot, vesselControl,
+                        turn(vessel, vesselAutoPilot, vesselControl,
                                 pitchDuringTurn,
-                                (currentHeading + headingChange),
+                                (currentHeading += headingChange),
                                 rightRollDuringTurn);
                         numTurns++;
                     }
                 } else {
                     logger.info("Leveling out.");
                     for (int j=0; j<3; j++) {
-                        turn(vesselAutoPilot, vesselControl, 4.00f, currentHeading, 0);
+                        turn(vessel, vesselAutoPilot, vesselControl, 4.00f, currentHeading, 0);
                     }
                     numTurns = 0;
                     applyCamera(spaceCenter);
@@ -152,18 +153,29 @@ public class RunInfiniteFlight {
        // */ // testing roll
     }
 
-    public static void turn(SpaceCenter.AutoPilot vesselAutoPilot,
+    public static void turn(SpaceCenter.Vessel vessel,
+                            SpaceCenter.AutoPilot vesselAutoPilot,
                             SpaceCenter.Control vesselControl,
                             float targetPitch,
                             float targetHeading,
                             float targetRoll) {
         logger.info("Turning with pitch {}, heading {}, roll {}", targetPitch, targetHeading, targetRoll);
         try {
+            // safety check
+            while (tooLow(vessel)){
+                vesselAutoPilot.setTargetRoll(0);
+                vesselAutoPilot.setTargetPitch(20);
+                vesselAutoPilot.setTargetHeading(targetHeading);
+                vesselAutoPilot.engage();
+                sleep(turnTimeMillis);
+            }
+
+            // roll first
             vesselAutoPilot.setTargetRoll(targetRoll);
-            vesselAutoPilot.engage();
             vesselAutoPilot.engage();
             sleep(turnTimeMillis);
 
+            // then turn
             vesselAutoPilot.setTargetPitch(targetPitch);
             vesselAutoPilot.setTargetHeading(targetHeading);
             vesselAutoPilot.engage();
@@ -174,6 +186,31 @@ public class RunInfiniteFlight {
         } catch (RPCException e) {
             e.printStackTrace();
         }
+    }
+
+    public static boolean tooLow(SpaceCenter.Vessel vessel) {
+        try {
+            SpaceCenter.Flight vesselFlight = vessel.flight(vessel.getSurfaceReferenceFrame());
+
+            double surfaceAltitude = vesselFlight.getSurfaceAltitude();
+            double meanAltitude = vesselFlight.getMeanAltitude();
+            double elevation = vesselFlight.getElevation();
+            double bedrockAltitude = vesselFlight.getBedrockAltitude();
+            logger.info("Altitude {}, surface altitude {}, elevation {}, bedrock altitude {}",
+                    meanAltitude, surfaceAltitude, elevation, bedrockAltitude);
+
+            if (surfaceAltitude < minAltitudeAboveSurface) {
+                logger.info("Surface altitude of {} is too low, pull up!", surfaceAltitude);
+                return true;
+            } else {
+                logger.info("Surface altitude of {} is safe, no need to adjust.", surfaceAltitude);
+                return false;
+            }
+        } catch (RPCException e) {
+            e.printStackTrace();
+        }
+        logger.info("All altitude checks failed, proceeding with no change.");
+        return false;
     }
 
     // Camera minPitch = -91.67324 and maxPitch = 88.80845
@@ -190,7 +227,7 @@ public class RunInfiniteFlight {
                 int randomDistance = ThreadLocalRandom.current().nextInt(
                         (int) camera.getMinDistance() * 2,
     //                    (int) camera.getMaxDistance() / 10 + 1);
-                        1000 + 1);
+                        500 + 1);
                 camera.setPitch(randomPitch);
                 camera.setDistance(randomDistance);
         } catch (RPCException e) {
