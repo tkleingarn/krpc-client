@@ -40,7 +40,7 @@ public class RunInfiniteFlight {
     final static String waterBiome = "Water";
 
     final static int pollingIntervalMillis = 1000;
-    final static int turnTimeMillis = 10000;
+    final static int turnTimeMillis = 3000;
 
     // level
     // Current pitch 2.6546106, heading 113.08709, roll -89.046875
@@ -56,10 +56,10 @@ public class RunInfiniteFlight {
     // pitch (float) – Target pitch angle, in degrees between -90° and +90°.
     // heading (float) – Target heading angle, in degrees between 0° and 360°.
 
-    final static float pitchDuringTurn = 6.00f;
-    final static float headingChange = 35.f;
-    final static float leftRollDuringTurn = -30.0f;
-    final static float rightRollDuringTurn = 150.0f;
+    final static float pitchDuringTurn = 3.00f;
+    final static float headingChange = 30.0f;
+    final static float leftRollDuringTurn = -50.0f;
+    final static float rightRollDuringTurn = 170.0f;
 
 
     public static void main(String[] args) throws IOException, RPCException {
@@ -119,8 +119,7 @@ public class RunInfiniteFlight {
                     currentHeading = currentHeading + headingChange;
                 }
                 logger.info("Levelling out.");
-                turn(vesselAutoPilot, vesselControl, 3.00f, currentHeading, 0);
-
+                turn(vesselAutoPilot, vesselControl, 1.00f, currentHeading, 0);
             } catch (RPCException e) {
                 e.printStackTrace();
             } catch (IOException e) {
@@ -146,7 +145,7 @@ public class RunInfiniteFlight {
         try {
             vesselAutoPilot.setTargetPitch(targetPitch);
             vesselAutoPilot.setTargetHeading(targetHeading);
-            vesselAutoPilot.setTargetRoll(targetRoll);
+//            vesselAutoPilot.setTargetRoll(targetRoll);
             vesselAutoPilot.engage();
             sleep(turnTimeMillis);
             vesselAutoPilot.disengage();
