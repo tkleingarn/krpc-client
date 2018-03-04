@@ -45,6 +45,7 @@ public class RunInfiniteFlight {
     final static int turnTimeMillis = 5000;
     final static int maxTurns = 3;
     final static double minAltitudeAboveSurface = 500;
+    final static double maxAltitudeAboveSurface = 1000;
 
     // level
     // Current pitch 2.6546106, heading 113.08709, roll -89.046875
@@ -169,6 +170,13 @@ public class RunInfiniteFlight {
                 vesselAutoPilot.engage();
                 sleep(turnTimeMillis);
             }
+            while (tooHigh(vessel)){
+                vesselAutoPilot.setTargetRoll(0);
+                vesselAutoPilot.setTargetPitch(-10);
+                vesselAutoPilot.setTargetHeading(targetHeading);
+                vesselAutoPilot.engage();
+                sleep(turnTimeMillis);
+            }
 
             // roll first
             vesselAutoPilot.setTargetRoll(targetRoll);
@@ -213,6 +221,25 @@ public class RunInfiniteFlight {
         return false;
     }
 
+    public static boolean tooHigh(SpaceCenter.Vessel vessel) {
+        try {
+            SpaceCenter.Flight vesselFlight = vessel.flight(vessel.getSurfaceReferenceFrame());
+            double surfaceAltitude = vesselFlight.getSurfaceAltitude();
+
+            if (surfaceAltitude > maxAltitudeAboveSurface) {
+                logger.info("Surface altitude of {} is too high, descend!", surfaceAltitude);
+                return true;
+            } else {
+                logger.info("Surface altitude of {} is fine, no need to adjust.", surfaceAltitude);
+                return false;
+            }
+        } catch (RPCException e) {
+            e.printStackTrace();
+        }
+        logger.info("All altitude checks failed, proceeding with no change.");
+        return false;
+    }
+
     // Camera minPitch = -91.67324 and maxPitch = 88.80845
     public static void applyCamera(SpaceCenter spaceCenter) {
 
@@ -223,11 +250,11 @@ public class RunInfiniteFlight {
                 logger.info("Camera minDistance = {} and maxDistance = {}", camera.getMinDistance(), camera.getMaxDistance());
                 int randomPitch = ThreadLocalRandom.current().nextInt(
                         0,
-                        (int) camera.getMaxPitch() + 1);
+                        60 + 1);
                 int randomDistance = ThreadLocalRandom.current().nextInt(
                         (int) camera.getMinDistance() * 2,
     //                    (int) camera.getMaxDistance() / 10 + 1);
-                        500 + 1);
+                        200 + 1);
                 camera.setPitch(randomPitch);
                 camera.setDistance(randomDistance);
         } catch (RPCException e) {
