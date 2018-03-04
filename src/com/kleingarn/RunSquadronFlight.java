@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 
-public class Main {
+public class RunSquadronFlight {
 
     final static Logger logger = LoggerFactory.getLogger(Squadron.class);
 
