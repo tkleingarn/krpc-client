@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class RunInfiniteFlight {
 
@@ -38,10 +39,11 @@ public class RunInfiniteFlight {
     final static boolean tweakAp = true;
 
     final static String waterBiome = "Water";
+    final static String shoresBiome = "Shores";
 
     final static int pollingIntervalMillis = 1000;
     final static int turnTimeMillis = 5000;
-    final static int maxTurns = 5;
+    final static int maxTurns = 3;
 
     // level
     // Current pitch 2.6546106, heading 113.08709, roll -89.046875
@@ -57,23 +59,21 @@ public class RunInfiniteFlight {
     // pitch (float) – Target pitch angle, in degrees between -90° and +90°.
     // heading (float) – Target heading angle, in degrees between 0° and 360°.
 
-    final static float pitchDuringTurn = 3.00f;
+    final static float pitchDuringTurn = 2.00f;
     final static float headingChange = 25.0f;
     final static float leftRollDuringTurn = -45f;
-    final static float rightRollDuringTurn = 135f;
+    final static float rightRollDuringTurn = 45f;
 
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
-        Connection connection = Connection.newInstance("Squadron flight");
+        Connection connection = Connection.newInstance("Flight");
         KRPC krpc = KRPC.newInstance(connection);
         SpaceCenter spaceCenter = SpaceCenter.newInstance(connection);
         logger.info("Connected to kRPC version {}", krpc.getStatus().getVersion());
 
         // assume we are flying already
         SpaceCenter.Vessel vessel = spaceCenter.getActiveVessel();
-
-        // fly
         flyTrackingCoast(spaceCenter, vessel);
     }
 
@@ -90,7 +90,18 @@ public class RunInfiniteFlight {
         } catch (RPCException e) {
             e.printStackTrace();
         }
-
+/*
+        // testing roll
+        while (true) {
+            try {
+                logger.info("Current roll is {} ", (float) vesselControl.getRoll());
+                sleep(pollingIntervalMillis);
+            } catch (RPCException e) {
+                e.printStackTrace();
+            }
+        }
+*/
+// /*
         int numTurns = 0;
         while (true) {
             try {
@@ -106,15 +117,15 @@ public class RunInfiniteFlight {
 
                 if (numTurns < maxTurns) {
                     // if you drift over water
-                    if (biome.equals(waterBiome)) {
-                        logger.info("Over water");
+                    if (biome.equals(shoresBiome) || biome.equals(waterBiome)) {
+                        logger.info("Over {}, turning left.", biome);
                         turn(vesselAutoPilot, vesselControl,
                                 pitchDuringTurn,
                                 (currentHeading - headingChange),
                                 leftRollDuringTurn);
                         numTurns++;
                     } else { // if you drift over land
-                        logger.info("Over land");
+                        logger.info("Over land, turning right.");
                         turn(vesselAutoPilot, vesselControl,
                                 pitchDuringTurn,
                                 (currentHeading + headingChange),
@@ -122,13 +133,14 @@ public class RunInfiniteFlight {
                         numTurns++;
                     }
                 } else {
-                    logger.info("Levelling out.");
-                    for (int j=0; j<7; j++) {
-                        turn(vesselAutoPilot, vesselControl, 3.00f, currentHeading, 0);
+                    logger.info("Leveling out.");
+                    for (int j=0; j<3; j++) {
+                        turn(vesselAutoPilot, vesselControl, 4.00f, currentHeading, 0);
                     }
                     numTurns = 0;
-                    sleep(20000);
+                    applyCamera(spaceCenter);
                 }
+
             } catch (RPCException e) {
                 e.printStackTrace();
             } catch (IOException e) {
@@ -136,13 +148,8 @@ public class RunInfiniteFlight {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
-            // if you drift over land
-            // TODO: tkleingarn
-
-            // wait leadPollingIntervalMillis
-            sleep(pollingIntervalMillis);
         }
+       // */ // testing roll
     }
 
     public static void turn(SpaceCenter.AutoPilot vesselAutoPilot,
@@ -152,17 +159,44 @@ public class RunInfiniteFlight {
                             float targetRoll) {
         logger.info("Turning with pitch {}, heading {}, roll {}", targetPitch, targetHeading, targetRoll);
         try {
-            vesselAutoPilot.setTargetPitch(targetPitch);
-            vesselAutoPilot.setTargetHeading(targetHeading);
-//            vesselAutoPilot.setTargetRoll(targetRoll);
-//            vesselControl.setRoll(targetRoll);
+            vesselAutoPilot.setTargetRoll(targetRoll);
+            vesselAutoPilot.engage();
             vesselAutoPilot.engage();
             sleep(turnTimeMillis);
+
+            vesselAutoPilot.setTargetPitch(targetPitch);
+            vesselAutoPilot.setTargetHeading(targetHeading);
+            vesselAutoPilot.engage();
+            sleep(turnTimeMillis);
+
             vesselAutoPilot.disengage();
             vesselControl.setSAS(true);
         } catch (RPCException e) {
             e.printStackTrace();
         }
+    }
+
+    // Camera minPitch = -91.67324 and maxPitch = 88.80845
+    public static void applyCamera(SpaceCenter spaceCenter) {
+
+        try {
+
+                SpaceCenter.Camera camera = spaceCenter.getCamera();
+                logger.info("Camera minPitch = {} and maxPitch = {}", 0, camera.getMaxPitch());
+                logger.info("Camera minDistance = {} and maxDistance = {}", camera.getMinDistance(), camera.getMaxDistance());
+                int randomPitch = ThreadLocalRandom.current().nextInt(
+                        0,
+                        (int) camera.getMaxPitch() + 1);
+                int randomDistance = ThreadLocalRandom.current().nextInt(
+                        (int) camera.getMinDistance() * 2,
+    //                    (int) camera.getMaxDistance() / 10 + 1);
+                        1000 + 1);
+                camera.setPitch(randomPitch);
+                camera.setDistance(randomDistance);
+        } catch (RPCException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public static void sleep (int sleepTimeInmillis) {
