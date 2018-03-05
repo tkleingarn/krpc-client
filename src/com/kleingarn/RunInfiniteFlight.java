@@ -40,32 +40,31 @@ public class RunInfiniteFlight {
 
     final static String waterBiome = "Water";
     final static String shoresBiome = "Shores";
+    final static String highlandsBiome = "Highlands";
+    final static String mountainsBiome = "Mountains";
 
     final static int pollingIntervalMillis = 1000;
-    final static int turnTimeMillis = 5000;
+    final static int turnTimeMillis = 500;
     final static int maxTurns = 3;
-    final static double minAltitudeAboveSurface = 500;
-    final static double maxAltitudeAboveSurface = 1000;
+    final static double minAltitudeAboveSurface = 100;
+    final static double maxAltitudeAboveSurface = 250;
+    final static double minAltitudeAboveHighlands = 800;
+    final static double maxAltitudeAboveHighlands = 1000;
+    final static double minAltitudeAboveMountains = 3000;
+    final static double maxAltitudeAboveMountains = 10000;
 
     // level
-    // Current pitch 2.6546106, heading 113.08709, roll -89.046875
-    // turning left
-    // Current pitch 2.729361, heading 85.088234, roll -34.88261
-    //                                            full left roll = -0.00
-    // turning right
-    // Current pitch 5.564002, heading 107.941185, roll -143.168
-    //                                             full right roll = -180
-    // targets
-    // pitch 5, heading +/- 30, roll -30 left, -150 right
-
+    // e.g. Current pitch 2.6546106, heading 113.08709, roll -89.046875
     // pitch (float) – Target pitch angle, in degrees between -90° and +90°.
     // heading (float) – Target heading angle, in degrees between 0° and 360°.
 
     final static float pitchDuringTurn = 2.00f;
-    final static float headingChange = 25.0f;
-    final static float leftRollDuringTurn = -45f;
-    final static float rightRollDuringTurn = 45f;
-
+    final static float pitchDuringAscent = 20.00f;
+    final static float pitchDuringMountainClimb = 60.00f;
+    final static float pitchDuringDescent = -4.00f;
+    final static float headingChange = 15.0f;
+    final static float leftRollDuringTurn = -30f;
+    final static float rightRollDuringTurn = 30f;
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
@@ -92,17 +91,7 @@ public class RunInfiniteFlight {
         } catch (RPCException e) {
             e.printStackTrace();
         }
-/*
-        // testing roll
-        while (true) {
-            try {
-                logger.info("Current roll is {} ", (float) vesselControl.getRoll());
-                sleep(pollingIntervalMillis);
-            } catch (RPCException e) {
-                e.printStackTrace();
-            }
-        }
-*/
+
 // /*
         int numTurns = 0;
         while (true) {
@@ -118,26 +107,34 @@ public class RunInfiniteFlight {
                 float currentHeading = pitchHeadingRoll.getValue1();
 
                 if (numTurns < maxTurns) {
-                    // if you drift over water
                     if (biome.equals(shoresBiome) || biome.equals(waterBiome)) {
+                        // if you drift over water
                         logger.info("Over {}, turning left.", biome);
                         turn(vessel, vesselAutoPilot, vesselControl,
                                 pitchDuringTurn,
-                                (currentHeading -= headingChange),
+                                (currentHeading - headingChange),
                                 leftRollDuringTurn);
                         numTurns++;
+//                    } else if (biome.equals(highlandsBiome) || biome.equals(mountainsBiome)){
+//                        // ascend to mountain altitude
+//                        logger.info("Over {}, ascending fast.", biome);
+//                        turn(vessel, vesselAutoPilot, vesselControl,
+//                                pitchDuringMountainClimb,
+//                                (currentHeading + headingChange),
+//                                rightRollDuringTurn);
+//                        numTurns++;
                     } else { // if you drift over land
                         logger.info("Over land, turning right.");
                         turn(vessel, vesselAutoPilot, vesselControl,
                                 pitchDuringTurn,
-                                (currentHeading += headingChange),
+                                (currentHeading + headingChange),
                                 rightRollDuringTurn);
                         numTurns++;
                     }
                 } else {
                     logger.info("Leveling out.");
                     for (int j=0; j<3; j++) {
-                        turn(vessel, vesselAutoPilot, vesselControl, 4.00f, currentHeading, 0);
+                        turn(vessel, vesselAutoPilot, vesselControl, 2.0f, currentHeading, 0);
                     }
                     numTurns = 0;
                     applyCamera(spaceCenter);
@@ -163,16 +160,24 @@ public class RunInfiniteFlight {
         logger.info("Turning with pitch {}, heading {}, roll {}", targetPitch, targetHeading, targetRoll);
         try {
             // safety check
-            while (tooLow(vessel)){
+            while (tooLow(vessel)) {
                 vesselAutoPilot.setTargetRoll(0);
-                vesselAutoPilot.setTargetPitch(20);
+                if (!vessel.getBiome().equals(highlandsBiome) && !vessel.getBiome().equals(mountainsBiome)) {
+                    vesselAutoPilot.setTargetPitch(pitchDuringAscent);
+                } else {
+                    vesselAutoPilot.setTargetPitch(pitchDuringMountainClimb);
+                }
                 vesselAutoPilot.setTargetHeading(targetHeading);
                 vesselAutoPilot.engage();
                 sleep(turnTimeMillis);
             }
             while (tooHigh(vessel)){
                 vesselAutoPilot.setTargetRoll(0);
-                vesselAutoPilot.setTargetPitch(-10);
+                if (!vessel.getBiome().equals(highlandsBiome) && !vessel.getBiome().equals(mountainsBiome)) {
+                    vesselAutoPilot.setTargetPitch(pitchDuringDescent);
+                } else {
+                    vesselAutoPilot.setTargetPitch(pitchDuringDescent);
+                }
                 vesselAutoPilot.setTargetHeading(targetHeading);
                 vesselAutoPilot.engage();
                 sleep(turnTimeMillis);
@@ -207,12 +212,30 @@ public class RunInfiniteFlight {
             logger.info("Altitude {}, surface altitude {}, elevation {}, bedrock altitude {}",
                     meanAltitude, surfaceAltitude, elevation, bedrockAltitude);
 
-            if (surfaceAltitude < minAltitudeAboveSurface) {
-                logger.info("Surface altitude of {} is too low, pull up!", surfaceAltitude);
-                return true;
-            } else {
-                logger.info("Surface altitude of {} is safe, no need to adjust.", surfaceAltitude);
-                return false;
+            if((!vessel.getBiome().equals(highlandsBiome) && !vessel.getBiome().equals(mountainsBiome))) {
+                if (surfaceAltitude < minAltitudeAboveSurface) {
+                    logger.info("Surface altitude of {} is too low, pull up!", surfaceAltitude);
+                    return true;
+                } else {
+                    logger.info("Surface altitude of {} is safe, no need to adjust.", surfaceAltitude);
+                    return false;
+                }
+            } else if (vessel.getBiome().equals(highlandsBiome)){
+                if (surfaceAltitude < minAltitudeAboveHighlands) {
+                    logger.info("Altitude above highlands {} is too low, pull up!", surfaceAltitude);
+                    return true;
+                } else {
+                    logger.info("Altitude above highlands {} is safe, no need to adjust.", surfaceAltitude);
+                    return false;
+                }
+            } else if (vessel.getBiome().equals(mountainsBiome)){
+                if (surfaceAltitude < minAltitudeAboveMountains) {
+                    logger.info("Altitude above mountains {} is too low, pull up!", surfaceAltitude);
+                    return true;
+                } else {
+                    logger.info("Altitude above mountains {} is safe, no need to adjust.", surfaceAltitude);
+                    return false;
+                }
             }
         } catch (RPCException e) {
             e.printStackTrace();
@@ -226,12 +249,30 @@ public class RunInfiniteFlight {
             SpaceCenter.Flight vesselFlight = vessel.flight(vessel.getSurfaceReferenceFrame());
             double surfaceAltitude = vesselFlight.getSurfaceAltitude();
 
-            if (surfaceAltitude > maxAltitudeAboveSurface) {
-                logger.info("Surface altitude of {} is too high, descend!", surfaceAltitude);
-                return true;
-            } else {
-                logger.info("Surface altitude of {} is fine, no need to adjust.", surfaceAltitude);
-                return false;
+            if((!vessel.getBiome().equals(highlandsBiome) && !vessel.getBiome().equals(mountainsBiome))) {
+                if (surfaceAltitude > maxAltitudeAboveSurface) {
+                    logger.info("Surface altitude of {} is too high, descending.", surfaceAltitude);
+                    return true;
+                } else {
+                    logger.info("Surface altitude of {} is fine, no need to adjust.", surfaceAltitude);
+                    return false;
+                }
+            } else if(vessel.getBiome().equals(highlandsBiome)) {
+                if (surfaceAltitude > maxAltitudeAboveHighlands) {
+                    logger.info("Altitude above highlands {} is too high, descending.", surfaceAltitude);
+                    return true;
+                } else {
+                    logger.info("Altitude above highlands {} is safe, no need to adjust.", surfaceAltitude);
+                    return false;
+                }
+            } else if(vessel.getBiome().equals(mountainsBiome)){
+                if (surfaceAltitude > maxAltitudeAboveMountains) {
+                    logger.info("Altitude above mountains {} is too high, descending.", surfaceAltitude);
+                    return true;
+                } else {
+                    logger.info("Altitude above mountains {} is safe, no need to adjust.", surfaceAltitude);
+                    return false;
+                }
             }
         } catch (RPCException e) {
             e.printStackTrace();
@@ -243,24 +284,46 @@ public class RunInfiniteFlight {
     // Camera minPitch = -91.67324 and maxPitch = 88.80845
     public static void applyCamera(SpaceCenter spaceCenter) {
 
-        try {
+        int cameraTypeChange = ThreadLocalRandom.current().nextInt(
+                0,
+                10 + 1);
+
+        if (cameraTypeChange > 9) {
+            try {
+                SpaceCenter.Camera camera = spaceCenter.getCamera();
+                camera.setMode(SpaceCenter.CameraMode.I_VA);
+            } catch (RPCException e) {
+                e.printStackTrace();
+            }
+        } else {
+            try {
 
                 SpaceCenter.Camera camera = spaceCenter.getCamera();
+
+                int freeOrChase = ThreadLocalRandom.current().nextInt(
+                        0,
+                        1 + 1);
+                logger.info("Free or chase rand is {}", freeOrChase);
+                if(freeOrChase == 1) {
+                    camera.setMode(SpaceCenter.CameraMode.CHASE);
+                } else {
+                    camera.setMode(SpaceCenter.CameraMode.FREE);
+                }
                 logger.info("Camera minPitch = {} and maxPitch = {}", 0, camera.getMaxPitch());
                 logger.info("Camera minDistance = {} and maxDistance = {}", camera.getMinDistance(), camera.getMaxDistance());
                 int randomPitch = ThreadLocalRandom.current().nextInt(
-                        0,
+                        10,
                         60 + 1);
                 int randomDistance = ThreadLocalRandom.current().nextInt(
                         (int) camera.getMinDistance() * 2,
-    //                    (int) camera.getMaxDistance() / 10 + 1);
+                        //                    (int) camera.getMaxDistance() / 10 + 1);
                         200 + 1);
                 camera.setPitch(randomPitch);
                 camera.setDistance(randomDistance);
-        } catch (RPCException e) {
-            e.printStackTrace();
+                } catch(RPCException e){
+                    e.printStackTrace();
+            }
         }
-
     }
 
     public static void sleep (int sleepTimeInmillis) {
