@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static com.kleingarn.FuelUtils.dropEmptyTanks;
+import static com.kleingarn.FuelUtils.getDecoupleableParts;
 
 public class RunInfiniteFlight {
 
@@ -47,9 +48,11 @@ public class RunInfiniteFlight {
 
     final static int pollingIntervalMillis = 1000;
     final static int turnTimeMillis = 500;
-    final static int maxTurns = 3;
-    final static double minAltitudeAboveSurface = 100;
-    final static double maxAltitudeAboveSurface = 250;
+    final static int maxTurns = 2;
+    final static float headingChange = 60.0f;
+    final static int levelOutCount = 10;
+    final static double minAltitudeAboveSurface = 120;
+    final static double maxAltitudeAboveSurface = 300;
     final static double minAltitudeAboveHighlands = 800;
     final static double maxAltitudeAboveHighlands = 1000;
     final static double minAltitudeAboveMountains = 3000;
@@ -64,7 +67,6 @@ public class RunInfiniteFlight {
     final static float pitchDuringAscent = 20.00f;
     final static float pitchDuringMountainClimb = 60.00f;
     final static float pitchDuringDescent = -4.00f;
-    final static float headingChange = 15.0f;
     final static float leftRollDuringTurn = -30f;
     final static float rightRollDuringTurn = 30f;
 
@@ -84,12 +86,12 @@ public class RunInfiniteFlight {
 
         SpaceCenter.Control vesselControl = null;
         SpaceCenter.AutoPilot vesselAutoPilot = null;
+        List<SpaceCenter.Part> partsWithDecouplers = null;
         Triplet<Float, Float, Float> pitchHeadingRoll = null;
 
         try {
             vesselControl = vessel.getControl();
             vesselAutoPilot = vessel.getAutoPilot();
-            vesselControl.setSAS(true);
         } catch (RPCException e) {
             e.printStackTrace();
         }
@@ -127,12 +129,13 @@ public class RunInfiniteFlight {
                     }
                 } else {
                     logger.info("Leveling out.");
-                    for (int j=0; j<3; j++) {
+                    applyCamera(spaceCenter);
+                    partsWithDecouplers = getDecoupleableParts(vessel);
+                    dropEmptyTanks(vessel, partsWithDecouplers);
+                    for (int j=0; j<levelOutCount; j++) {
                         turn(vessel, vesselAutoPilot, vesselControl, 2.0f, currentHeading, 0);
                     }
                     numTurns = 0;
-                    applyCamera(spaceCenter);
-                    dropEmptyTanks(vessel);
                 }
 
             } catch (RPCException e) {
@@ -288,7 +291,7 @@ public class RunInfiniteFlight {
                         0,
                         (int) camera.getMaxPitch() + 1);
                 int randomDistance = ThreadLocalRandom.current().nextInt(
-                        (int) camera.getMinDistance() * 2,
+                        (int) camera.getMinDistance() * 3,
                         250 + 1);
                 camera.setPitch(randomPitch);
                 camera.setDistance(randomDistance);
