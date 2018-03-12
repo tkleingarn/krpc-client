@@ -49,7 +49,7 @@ public class RunInfiniteFlight {
     final static int pollingIntervalMillis = 1000;
     final static int turnTimeMillis = 500;
     final static int maxTurns = 2;
-    final static float headingChange = 60.0f;
+    final static float headingChange = 65.0f;
     final static int levelOutCount = 10;
     final static double minAltitudeAboveSurface = 120;
     final static double maxAltitudeAboveSurface = 300;
