@@ -284,15 +284,16 @@ public class RunInfiniteFlight {
             try {
                 // Camera minPitch = -91.67324 and maxPitch = 88.80845
                 SpaceCenter.Camera camera = spaceCenter.getCamera();
-
-                logger.info("Camera minPitch = {} and maxPitch = {}", 0, camera.getMaxPitch());
-                logger.info("Camera minDistance = {} and maxDistance = {}", camera.getMinDistance(), camera.getMaxDistance());
+                int randomHeading = ThreadLocalRandom.current().nextInt(
+                        0,
+                        360 + 1);
                 int randomPitch = ThreadLocalRandom.current().nextInt(
                         0,
-                        (int) camera.getMaxPitch() + 1);
+                        88 + 1 - 40);
                 int randomDistance = ThreadLocalRandom.current().nextInt(
-                        (int) camera.getMinDistance() * 3,
+                        50,
                         250 + 1);
+                camera.setHeading(randomHeading);
                 camera.setPitch(randomPitch);
                 camera.setDistance(randomDistance);
                 } catch(RPCException e){
