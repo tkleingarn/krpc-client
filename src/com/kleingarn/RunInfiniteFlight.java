@@ -297,7 +297,7 @@ public class RunInfiniteFlight {
                         0,
                         88 + 1 - 50);
                 int randomDistance = ThreadLocalRandom.current().nextInt(
-                        50,
+                        25,
                         250 + 1);
                 camera.setHeading(randomHeading);
                 camera.setPitch(randomPitch);
