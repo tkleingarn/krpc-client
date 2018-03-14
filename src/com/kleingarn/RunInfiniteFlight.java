@@ -49,8 +49,10 @@ public class RunInfiniteFlight {
     final static int pollingIntervalMillis = 1000;
     final static int turnTimeMillis = 500;
     final static int maxTurns = 2;
-    final static float headingChange = 65.0f;
-    final static int levelOutCount = 10;
+    final static float headingChangeOverWater = 65.0f;
+    final static float headingChangeOverLand = 20.0f;
+    final static int minLevelOutCount = 5;
+    final static int maxLevelOutCount = 20;
     final static double minAltitudeAboveSurface = 120;
     final static double maxAltitudeAboveSurface = 300;
     final static double minAltitudeAboveHighlands = 800;
@@ -116,23 +118,27 @@ public class RunInfiniteFlight {
                         logger.info("Over {}, turning left.", biome);
                         turn(vessel, vesselAutoPilot, vesselControl,
                                 pitchDuringTurn,
-                                (currentHeading - headingChange),
+                                (currentHeading - headingChangeOverWater),
                                 leftRollDuringTurn);
                         numTurns++;
                     } else { // if you drift over land
                         logger.info("Over land, turning right.");
                         turn(vessel, vesselAutoPilot, vesselControl,
                                 pitchDuringTurn,
-                                (currentHeading + headingChange),
+                                (currentHeading + headingChangeOverLand),
                                 rightRollDuringTurn);
                         numTurns++;
                     }
                 } else {
-                    logger.info("Leveling out.");
                     applyCamera(spaceCenter);
                     partsWithDecouplers = getDecoupleableParts(vessel);
                     dropEmptyTanks(vessel, partsWithDecouplers);
-                    for (int j=0; j<levelOutCount; j++) {
+
+                    int randomLevelOutCount = ThreadLocalRandom.current().nextInt(
+                            minLevelOutCount,
+                            maxLevelOutCount + 1);
+                    logger.info("Leveling out for {} turns.", randomLevelOutCount);
+                    for (int j=0; j<randomLevelOutCount; j++) {
                         turn(vessel, vesselAutoPilot, vesselControl, 2.0f, currentHeading, 0);
                     }
                     numTurns = 0;
@@ -289,7 +295,7 @@ public class RunInfiniteFlight {
                         360 + 1);
                 int randomPitch = ThreadLocalRandom.current().nextInt(
                         0,
-                        88 + 1 - 40);
+                        88 + 1 - 50);
                 int randomDistance = ThreadLocalRandom.current().nextInt(
                         50,
                         250 + 1);
