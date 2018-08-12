@@ -33,18 +33,11 @@ public class RunVTOL {
     }
 
     private static void runVTOL(SpaceCenter spaceCenter, SpaceCenter.Vessel vessel) {
-
         SpaceCenter.Control vesselControl = null;
         SpaceCenter.AutoPilot vesselAutoPilot = null;
-
         logger.info("Running VTOL flight algorithm");
         try {
             vesselControl = vessel.getControl();
-            vesselAutoPilot = vessel.getAutoPilot();
-
-            // if lights are on and engines are not vertical
-
-            // if lights changed
             boolean lightStatus = vesselControl.getLights();
 
             while (true) {
@@ -55,19 +48,13 @@ public class RunVTOL {
 
                     List<SpaceCenter.Part> partsWithDockingPorts = DockingUtils.getPartsWithDockingPorts(vessel);
                     DockingUtils.undockDockedPorts(vessel, partsWithDockingPorts);
-                    Squadron vtolShipAndEngines = Squadron.buildSquadron("vtol docker 03", "vtol docker 03", spaceCenter);
-                        // [main] INFO com.kleingarn.Squadron - Vessel found: vtol docker 03
-                        // [main] INFO com.kleingarn.Squadron - Vessel found: vtol docker 03 Probe
-                        // [main] INFO com.kleingarn.Squadron - Vessel found: vtol docker 03 Probe
-
+                    Squadron vtolShipAndEngines = Squadron.buildSquadron("vtol docker 04", "vtol docker 04", spaceCenter);
+                        // "vessel name" is leader, "vessel name Probe" is probe on engine
+                    
                     if (lightStatus) {
-                        changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", 1.0F);
-                        changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", 1.0F);
-                        changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", 1.0F);
+                        changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", 1.0F, SpaceCenter.SASMode.RADIAL);
                     } else {
-                        changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", -1.0F);
-                        changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", -1.0F);
-                        changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", -1.0F);
+                        changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", -1.0F, SpaceCenter.SASMode.ANTI_RADIAL);
                     }
                 }
                 sleep(5000);
@@ -79,18 +66,38 @@ public class RunVTOL {
 
     private static void changeEngineOrientation(Squadron squadron,
                                                 String controlFromPart,
-                                                float pitch) {
+                                                float pitch,
+                                                SpaceCenter.SASMode orientation) {
         squadron.getSquadronVessels().
                 parallelStream().
                 filter(v -> !v.equals(squadron.getSquadLeader())).
                 forEach
                     (v -> {
+                        boolean docked = false;
                         try {
                             logger.info("Setting {} SAS and SASMode", v.getName());
                             DockingUtils.setControlFromProbe(v, controlFromPart);
-                            v.getControl().setSAS(true);
-                            // v.getControl().setSASMode(orientation);
-                            v.getControl().setPitch(pitch);
+                            while(!docked) {
+                                logger.info("Docked is: {}", docked);
+                                v.getControl().setSAS(true);
+                                v.getControl().setPitch(pitch);
+                                v.getControl().setSASMode(orientation);
+                                docked = v.getParts().getDockingPorts().stream().anyMatch(
+                                        dp -> {
+                                            try {
+                                                logger.info("Docking state of part {} is {}", dp, dp.getState());
+                                                return dp.getState().equals(SpaceCenter.DockingPortState.DOCKED);
+                                            } catch (RPCException e) {
+                                                e.printStackTrace();
+                                            }
+                                            return false;
+                                        }
+                                );
+                                sleep(500);
+                            }
+                        } catch (IllegalArgumentException e) {
+                            e.printStackTrace();
+                            docked = true;
                         } catch (RPCException e) {
                             e.printStackTrace();
                         }

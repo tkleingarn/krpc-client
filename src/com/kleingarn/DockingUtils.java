@@ -14,7 +14,6 @@ public class DockingUtils {
     final static Logger logger = LoggerFactory.getLogger(DockingUtils.class);
 
     public static List<SpaceCenter.Part> getPartsWithDockingPorts(SpaceCenter.Vessel vessel){
-
         try{
             List<SpaceCenter.Part> dockingPorts = vessel.getParts().getAll();
             dockingPorts.removeIf(part -> {
@@ -32,7 +31,6 @@ public class DockingUtils {
         }
         return null;
     }
-
 
     public static void undockDockedPorts(SpaceCenter.Vessel vessel, List<SpaceCenter.Part> partsWithDockingPorts) {
         logger.info("Checking if parts are docked");
@@ -56,35 +54,12 @@ public class DockingUtils {
             List<SpaceCenter.Part> allParts = vessel.getParts().getAll();
             printParts(allParts);
 
-            // User match = users.stream().filter((user) -> user.getId() == 1).findAny().get();
-
-//            SpaceCenter.Part probePart = allParts.stream().filter(part -> {
-//                        try {
-//                            part.getName().equals(probePartName);
-//                        } catch (RPCException e) {
-//                            e.printStackTrace();
-//                        }
-//                        return false;
-//                    }).findAny().get();
-
             for (SpaceCenter.Part p : allParts) {
                 if (p.getName().equals(probePartName)) {
                     vessel.getParts().setControlling(p);
                     logger.info("Controlling {} from part {}", vessel, p);
                 }
             }
-
-
-
-
-//            allParts.removeIf(part -> {
-//                try {
-//                    if(part.getEngine() instanceof SpaceCenter.Engine != true);
-//                } catch (RPCException e) {
-//                    e.printStackTrace();
-//                }
-//                return false;
-//            });
         } catch (RPCException e) {
             e.printStackTrace();
         }
@@ -92,7 +67,6 @@ public class DockingUtils {
     }
 
     private static void printParts(List<SpaceCenter.Part> partsList) {
-
         partsList.stream().forEach(
             p -> {
                 try {
@@ -102,6 +76,4 @@ public class DockingUtils {
                 }
             });
     }
-
-
 }
