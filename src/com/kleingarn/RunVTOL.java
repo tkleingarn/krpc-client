@@ -48,13 +48,13 @@ public class RunVTOL {
 
                     List<SpaceCenter.Part> partsWithDockingPorts = DockingUtils.getPartsWithDockingPorts(vessel);
                     DockingUtils.undockDockedPorts(vessel, partsWithDockingPorts);
-                    Squadron vtolShipAndEngines = Squadron.buildSquadron("vtol docker 04", "vtol docker 04", spaceCenter);
+                    Squadron vtolShipAndEngines = Squadron.buildSquadron("vtol docker 05", "vtol docker 05", spaceCenter);
                         // "vessel name" is leader, "vessel name Probe" is probe on engine
                     
                     if (lightStatus) {
                         changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", 1.0F, SpaceCenter.SASMode.RADIAL);
                     } else {
-                        changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", -1.0F, SpaceCenter.SASMode.ANTI_RADIAL);
+                        changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", -0.25F, SpaceCenter.SASMode.ANTI_RADIAL);
                     }
                 }
                 sleep(5000);
@@ -77,11 +77,30 @@ public class RunVTOL {
                         try {
                             logger.info("Setting {} SAS and SASMode", v.getName());
                             DockingUtils.setControlFromProbe(v, controlFromPart);
+                            // float reducer = pitch / 10;
+                            float throttleIncrement = 0.005F;
+                            int attempts = 0;
                             while(!docked) {
                                 logger.info("Docked is: {}", docked);
                                 v.getControl().setSAS(true);
                                 v.getControl().setPitch(pitch);
-                                v.getControl().setSASMode(orientation);
+                                // v.getControl().setSASMode(orientation); // too forceful
+                                // v.getControl().setSASMode(SpaceCenter.SASMode.STABILITY_ASSIST);
+
+                                if (pitch > 0) {
+                                    if(throttleIncrement * attempts > 1.0F) {
+                                        attempts = 0;
+                                    } else {
+                                        v.getControl().setThrottle(throttleIncrement * attempts++);
+                                    }
+                                } else {
+                                    v.getControl().setSASMode(SpaceCenter.SASMode.NORMAL);
+                                    if(throttleIncrement * attempts > 1.0F) {
+                                        attempts = 0;
+                                    } else {
+                                        v.getControl().setThrottle(throttleIncrement * attempts++);
+                                    }
+                                }
                                 docked = v.getParts().getDockingPorts().stream().anyMatch(
                                         dp -> {
                                             try {
