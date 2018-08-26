@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.annotation.Documented;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -19,6 +20,7 @@ import static java.util.stream.Collectors.toList;
 public class RunVTOL {
 
     final static Logger logger = LoggerFactory.getLogger(RunVTOL.class);
+    final static String craftName = "vtol ssto claw 02";
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
@@ -29,6 +31,10 @@ public class RunVTOL {
 
         // assume we are flying already
         SpaceCenter.Vessel vessel = spaceCenter.getActiveVessel();
+
+        logger.info("PARTS WITH CLAWS");
+        DockingUtils.getPartsWithClaws(vessel);
+
         runVTOL(spaceCenter, vessel);
     }
 
@@ -39,22 +45,24 @@ public class RunVTOL {
         try {
             vesselControl = vessel.getControl();
             boolean lightStatus = vesselControl.getLights();
-
+            
             while (true) {
 
                 if (lightStatus != vesselControl.getLights()) {
                     logger.info("Light changed from {} to {}", lightStatus, vesselControl.getLights());
                     lightStatus = vesselControl.getLights();
 
+                    DockingUtils.releaseClaws(vesselControl, 1);
+                    sleep(100);
                     List<SpaceCenter.Part> partsWithDockingPorts = DockingUtils.getPartsWithDockingPorts(vessel);
                     DockingUtils.undockDockedPorts(vessel, partsWithDockingPorts);
-                    Squadron vtolShipAndEngines = Squadron.buildSquadron("vtol docker 05", "vtol docker 05", spaceCenter);
-                        // "vessel name" is leader, "vessel name Probe" is probe on engine
+                    Squadron vtolShipAndEngines = Squadron.buildSquadron(craftName, craftName, spaceCenter);
+                    // note: "vessel name" is leader, "vessel name Probe" is probe on engine
                     
                     if (lightStatus) {
                         changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", 1.0F, SpaceCenter.SASMode.RADIAL);
                     } else {
-                        changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", -0.25F, SpaceCenter.SASMode.ANTI_RADIAL);
+                        changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", -1.0F, SpaceCenter.SASMode.ANTI_RADIAL);
                     }
                 }
                 sleep(5000);
@@ -94,7 +102,7 @@ public class RunVTOL {
                                         v.getControl().setThrottle(throttleIncrement * attempts++);
                                     }
                                 } else {
-                                    v.getControl().setSASMode(SpaceCenter.SASMode.NORMAL);
+                                    v.getControl().setSASMode(SpaceCenter.SASMode.STABILITY_ASSIST);
                                     if(throttleIncrement * attempts > 1.0F) {
                                         attempts = 0;
                                     } else {
