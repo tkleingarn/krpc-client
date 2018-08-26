@@ -4,23 +4,16 @@ import krpc.client.Connection;
 import krpc.client.RPCException;
 import krpc.client.services.KRPC;
 import krpc.client.services.SpaceCenter;
-import org.javatuples.Triplet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.annotation.Documented;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
-import static com.kleingarn.FuelUtils.dropEmptyTanks;
-import static com.kleingarn.FuelUtils.getDecoupleableParts;
-import static java.util.stream.Collectors.toList;
+public class RunClawVTOL {
 
-public class RunVTOL {
-
-    final static Logger logger = LoggerFactory.getLogger(RunVTOL.class);
-    final static String craftName = "vtol ssto claw 02";
+    final static Logger logger = LoggerFactory.getLogger(RunClawVTOL.class);
+    final static String craftName = "vtol ssto claw 01";
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
@@ -53,16 +46,13 @@ public class RunVTOL {
                     lightStatus = vesselControl.getLights();
 
                     DockingUtils.releaseClaws(vesselControl, 1);
-                    sleep(100);
-                    List<SpaceCenter.Part> partsWithDockingPorts = DockingUtils.getPartsWithDockingPorts(vessel);
-                    DockingUtils.undockDockedPorts(vessel, partsWithDockingPorts);
                     Squadron vtolShipAndEngines = Squadron.buildSquadron(craftName, craftName, spaceCenter);
                     // note: "vessel name" is leader, "vessel name Probe" is probe on engine
                     
                     if (lightStatus) {
-                        changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", 1.0F, SpaceCenter.SASMode.RADIAL);
+                        changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", 1.0F, spaceCenter);
                     } else {
-                        changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", -1.0F, SpaceCenter.SASMode.ANTI_RADIAL);
+                        changeEngineOrientation(vtolShipAndEngines, "probeCoreOcto2", -1.0F, spaceCenter);
                     }
                 }
                 sleep(5000);
@@ -75,21 +65,22 @@ public class RunVTOL {
     private static void changeEngineOrientation(Squadron squadron,
                                                 String controlFromPart,
                                                 float pitch,
-                                                SpaceCenter.SASMode orientation) {
+                                                SpaceCenter spaceCenter) {
         squadron.getSquadronVessels().
                 parallelStream().
                 filter(v -> !v.equals(squadron.getSquadLeader())).
                 forEach
                     (v -> {
-                        boolean docked = false;
+                        boolean connected = false;
                         try {
                             logger.info("Setting {} SAS and SASMode", v.getName());
                             DockingUtils.setControlFromProbe(v, controlFromPart);
                             // float reducer = pitch / 10;
                             float throttleIncrement = 0.005F;
                             int attempts = 0;
-                            while(!docked) {
-                                logger.info("Docked is: {}", docked);
+
+                            while(!connected) {
+                                logger.info("Connected is: {}", connected);
                                 v.getControl().setSAS(true);
                                 v.getControl().setPitch(pitch);
                                 // v.getControl().setSASMode(orientation); // too forceful
@@ -109,22 +100,17 @@ public class RunVTOL {
                                         v.getControl().setThrottle(throttleIncrement * attempts++);
                                     }
                                 }
-                                docked = v.getParts().getDockingPorts().stream().anyMatch(
-                                        dp -> {
-                                            try {
-                                                logger.info("Docking state of part {} is {}", dp, dp.getState());
-                                                return dp.getState().equals(SpaceCenter.DockingPortState.DOCKED);
-                                            } catch (RPCException e) {
-                                                e.printStackTrace();
-                                            }
-                                            return false;
-                                        }
-                                );
+
+                                Squadron vessels = Squadron.buildSquadron(craftName, craftName, spaceCenter);
+                                logger.info("Vessels in squadron is: " + vessels.getSquadronVessels().size());
+                                if (vessels.getSquadronVessels().size() == 0) {
+                                    logger.info("Single vessel found, breaking loop");
+                                    connected = true;
+                                }
                                 sleep(500);
                             }
                         } catch (IllegalArgumentException e) {
                             e.printStackTrace();
-                            docked = true;
                         } catch (RPCException e) {
                             e.printStackTrace();
                         }

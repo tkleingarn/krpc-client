@@ -44,7 +44,7 @@ public class Squadron {
             // find squadron
             List<SpaceCenter.Vessel> squadronVessels = allVessels.stream().filter(v -> {
                 try {
-                    return v.getName().contains(vesselPrefix);
+                    return (v.getName().contains(vesselPrefix) && !v.getName().contains("Debris"));
                 } catch (RPCException e) {
                     e.printStackTrace();
                 }
