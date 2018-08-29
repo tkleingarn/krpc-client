@@ -69,6 +69,9 @@ public class RunSquadronBombingRun {
         logger.info("Updating autopilot for squad every {} ms", leadPollingIntervalMillis);
         while (true) {
 
+
+            
+
             for (SpaceCenter.Vessel vessel : vessels) {
                 SpaceCenter.Control vesselControl = null;
                 SpaceCenter.AutoPilot vesselAutoPilot = null;
@@ -111,20 +114,20 @@ public class RunSquadronBombingRun {
                     vesselAutoPilot.setTargetDirection(leadFlightTelemetry.getDirection());
                     vesselAutoPilot.engage();
                 }
-                // vessel is leader
-                if(leadControl.getActionGroup(2)) {
-
-                    beginBombingRun(vessel, vesselControl);
-
-                }
+            }
+            // if leader had opened bomb bay
+            if(leadControl.getActionGroup(2)) {
+                squad.getSquadronVessels().parallelStream().forEach(v -> {
+                    try {
+                        beginBombingRun(v, v.getControl());
+                    } catch (RPCException e) {
+                        e.printStackTrace();
+                    }
+                });
             }
             sleep(leadPollingIntervalMillis);
         }
     }
-
-//    public static void openCargoBays(SpaceCenter.Vessel vessel, SpaceCenter.Control vesselControl) {
-//
-//    }
 
     public static void beginBombingRun(SpaceCenter.Vessel vessel, SpaceCenter.Control vesselControl) {
         try {
@@ -140,14 +143,6 @@ public class RunSquadronBombingRun {
                         allDecouplers.get(i).decouple();
                         sleep(500);
                     }
-
-//                    allDecouplers.parallelStream().forEach(d -> {
-//                        try {
-//                            d.decouple();
-//                        } catch (RPCException e) {
-//                            e.printStackTrace();
-//                        }
-//                    });
 
                 } else {
                     vesselControl.toggleActionGroup(2);
