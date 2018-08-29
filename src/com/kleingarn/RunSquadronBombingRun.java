@@ -68,53 +68,50 @@ public class RunSquadronBombingRun {
         // periodically get all config from leader and apply to squadron
         logger.info("Updating autopilot for squad every {} ms", leadPollingIntervalMillis);
         while (true) {
-
-
-            
-
-            for (SpaceCenter.Vessel vessel : vessels) {
+            squad.getSquadronVessels().parallelStream().forEach(v -> {
                 SpaceCenter.Control vesselControl = null;
                 SpaceCenter.AutoPilot vesselAutoPilot = null;
                 try {
-                    vesselControl = vessel.getControl();
-                    vesselAutoPilot = vessel.getAutoPilot();
-                } catch (IllegalArgumentException e) {
+                    vesselControl = v.getControl();
+                    vesselAutoPilot = v.getAutoPilot();
+                    if (!v.equals(leader)) {
+                        if (tweakAp) {
+                            vesselAutoPilot.setStoppingTime(stoppingTime);
+                            vesselAutoPilot.setDecelerationTime(decelerationTime);
+                            vesselAutoPilot.setTimeToPeak(timeToPeak);
+                            vesselAutoPilot.setAttenuationAngle(attenuationAngle);
+                        }
+                        // stage
+                        if (vesselControl.getCurrentStage() < leadControl.getCurrentStage()) {
+                            vesselControl.activateNextStage();
+                        }
+
+                        // set non-directional controls
+                        setNonDirectionalControls(vesselControl, leadControl);
+                        List<SpaceCenter.Engine> engines = v.getParts().getEngines();
+                        engines.stream().forEach(x -> {
+                            try {
+                                if (x.getPart().getEngine().getHasModes() == true) {
+                                    // 4 is turboJet
+                                    x.setMode(leader.getParts().getEngines().get(4).getMode());
+                                }
+                            } catch (RPCException e) {
+                                e.printStackTrace();
+                            }
+                        });
+
+                        // set flight telemetry targets
+                        vesselAutoPilot.setTargetPitch(leadFlightTelemetry.getPitch());
+                        vesselAutoPilot.setTargetRoll(leadFlightTelemetry.getRoll());
+                        vesselAutoPilot.setTargetHeading(leadFlightTelemetry.getHeading());
+                        vesselAutoPilot.setTargetDirection(leadFlightTelemetry.getDirection());
+                        vesselAutoPilot.engage();
+                    }
+                } catch(RPCException e){
                     e.printStackTrace();
                 }
-                if (!vessel.equals(leader)) {
-                    if (tweakAp) {
-                        vesselAutoPilot.setStoppingTime(stoppingTime);
-                        vesselAutoPilot.setDecelerationTime(decelerationTime);
-                        vesselAutoPilot.setTimeToPeak(timeToPeak);
-                        vesselAutoPilot.setAttenuationAngle(attenuationAngle);
-                    }
-                    // stage
-                    if(vesselControl.getCurrentStage() < leadControl.getCurrentStage()){
-                        vesselControl.activateNextStage();
-                    }
+            });
 
-                    // set non-directional controls
-                    setNonDirectionalControls(vesselControl, leadControl);
-                    List<SpaceCenter.Engine> engines = vessel.getParts().getEngines();
-                    engines.stream().forEach(x -> {
-                        try {
-                            if(x.getPart().getEngine().getHasModes() == true){
-                                // 4 is turboJet
-                                x.setMode(leader.getParts().getEngines().get(4).getMode());
-                            }
-                        } catch (RPCException e) {
-                            e.printStackTrace();
-                        }
-                    });
-
-                    // set flight telemetry targets
-                    vesselAutoPilot.setTargetPitch(leadFlightTelemetry.getPitch());
-                    vesselAutoPilot.setTargetRoll(leadFlightTelemetry.getRoll());
-                    vesselAutoPilot.setTargetHeading(leadFlightTelemetry.getHeading());
-                    vesselAutoPilot.setTargetDirection(leadFlightTelemetry.getDirection());
-                    vesselAutoPilot.engage();
-                }
-            }
             // if leader had opened bomb bay
             if(leadControl.getActionGroup(2)) {
                 squad.getSquadronVessels().parallelStream().forEach(v -> {
