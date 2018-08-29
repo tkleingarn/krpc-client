@@ -13,7 +13,7 @@ import java.util.List;
 public class FireAway {
 
     final static Logger logger = LoggerFactory.getLogger(RunClawVTOL.class);
-    final static String craftName = "vespian 03";
+    final static String craftName = "bomber 02";
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
