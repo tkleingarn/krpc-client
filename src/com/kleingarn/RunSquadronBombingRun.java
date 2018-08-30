@@ -88,17 +88,6 @@ public class RunSquadronBombingRun {
 
                         // set non-directional controls
                         setNonDirectionalControls(vesselControl, leadControl);
-                        List<SpaceCenter.Engine> engines = v.getParts().getEngines();
-                        engines.stream().forEach(x -> {
-                            try {
-                                if (x.getPart().getEngine().getHasModes() == true) {
-                                    // 4 is turboJet
-                                    x.setMode(leader.getParts().getEngines().get(4).getMode());
-                                }
-                            } catch (RPCException e) {
-                                e.printStackTrace();
-                            }
-                        });
 
                         // set flight telemetry targets
                         vesselAutoPilot.setTargetPitch(leadFlightTelemetry.getPitch());
@@ -114,9 +103,13 @@ public class RunSquadronBombingRun {
 
             // if leader had opened bomb bay
             if(leadControl.getActionGroup(2)) {
+                int currentStage = leader.getControl().getCurrentStage();
+                logger.info("Current stage of leader is " + currentStage);
                 squad.getSquadronVessels().parallelStream().forEach(v -> {
                     try {
-                        beginBombingRun(v, v.getControl());
+                        v.getControl().toggleActionGroup(2);
+                        int myCurrentStage = currentStage;
+                        releaseBombs(v, v.getControl(), myCurrentStage);
                     } catch (RPCException e) {
                         e.printStackTrace();
                     }
@@ -126,26 +119,46 @@ public class RunSquadronBombingRun {
         }
     }
 
-    public static void beginBombingRun(SpaceCenter.Vessel vessel, SpaceCenter.Control vesselControl) {
+    public static void releaseBombs(SpaceCenter.Vessel vessel, SpaceCenter.Control vesselControl, int currentStage) {
         try {
+            logger.info("Releasing bombs for vessel " + vessel.getName() + " and stage " + currentStage);
             // check that bay doors are fully open
+            boolean allBaysOpen = false;
             List<SpaceCenter.CargoBay> cargoBays = vessel.getParts().getCargoBays();
-            for(SpaceCenter.CargoBay bay : cargoBays) {
-                logger.info("Cargo bay {} is {}", bay, bay.getOpen());
-                if(bay.getOpen()) {
-                    List<SpaceCenter.Decoupler> allDecouplers = vessel.getParts().getDecouplers();
-
-                    for (int i = 0; i < allDecouplers.size(); i++) {
-                        // vesselControl.activateNextStage();
-                        allDecouplers.get(i).decouple();
-                        sleep(500);
+            while(!allBaysOpen) {
+                logger.info("Waiting for all bays to open on vessel {}", vessel.getName());
+                for(SpaceCenter.CargoBay bay : cargoBays) {
+                    logger.info("Cargo bay {} is {}", bay, bay.getOpen());
+                    if (!bay.getOpen()) {
+                        allBaysOpen = false;
+                        sleep(1000);
+                    } else {
+                        allBaysOpen = true;
+                        logger.info("All cargo bays are open on vessel {}, dropping bombs", vessel.getName());
+                        break;
                     }
-
-                } else {
-                    vesselControl.toggleActionGroup(2);
-                    sleep(5000);
                 }
             }
+
+            List<SpaceCenter.Decoupler> allDecouplers = vessel.getParts().getDecouplers();
+            logger.info("Current vessel " + vessel.getName() + " has " + allDecouplers.size() + " decouplers");
+
+            int totalDecouplerCount = allDecouplers.size();
+            while(totalDecouplerCount > 0) {
+                logger.info("Vessel {} has {} decouplers", vessel.getName(), allDecouplers.size());
+                for (SpaceCenter.Decoupler decoupler : allDecouplers) {
+                    logger.info("Vessel {}, decoupler {}, stage {}, target stage {}", vessel.getName(), decoupler, decoupler.getPart().getDecoupleStage(), currentStage);
+                    if (decoupler.getPart().getDecoupleStage() == (currentStage - 1)) {
+                        logger.info("Decoupling {} on vessel {}", decoupler.getPart(), vessel.getName());
+                        decoupler.decouple();
+                        totalDecouplerCount--;
+                        currentStage--;
+                        sleep(500);
+                    }
+                }
+            }
+            // close cargo bay
+            vesselControl.toggleActionGroup(2);
         } catch (RPCException e) {
             e.printStackTrace();
         }
