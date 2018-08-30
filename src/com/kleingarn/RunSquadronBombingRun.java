@@ -67,6 +67,7 @@ public class RunSquadronBombingRun {
         // v2
         // periodically get all config from leader and apply to squadron
         logger.info("Updating autopilot for squad every {} ms", leadPollingIntervalMillis);
+        boolean bombsReleased = false;
         while (true) {
             squad.getSquadronVessels().parallelStream().forEach(v -> {
                 SpaceCenter.Control vesselControl = null;
@@ -102,7 +103,7 @@ public class RunSquadronBombingRun {
             });
 
             // if leader had opened bomb bay
-            if(leadControl.getActionGroup(2)) {
+            if(leadControl.getActionGroup(2) && bombsReleased == false) {
                 int currentStage = leader.getControl().getCurrentStage();
                 logger.info("Current stage of leader is " + currentStage);
                 squad.getSquadronVessels().parallelStream().forEach(v -> {
@@ -114,6 +115,7 @@ public class RunSquadronBombingRun {
                         e.printStackTrace();
                     }
                 });
+                bombsReleased = true;
             }
             sleep(leadPollingIntervalMillis);
         }
@@ -140,6 +142,7 @@ public class RunSquadronBombingRun {
                 }
             }
 
+            sleep(5000);
             List<SpaceCenter.Decoupler> allDecouplers = vessel.getParts().getDecouplers();
             logger.info("Current vessel " + vessel.getName() + " has " + allDecouplers.size() + " decouplers");
 
