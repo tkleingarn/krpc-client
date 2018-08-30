@@ -150,10 +150,12 @@ public class RunSquadronBombingRun {
                     logger.info("Vessel {}, decoupler {}, stage {}, target stage {}", vessel.getName(), decoupler, decoupler.getPart().getDecoupleStage(), currentStage);
                     if (decoupler.getPart().getDecoupleStage() == (currentStage - 1)) {
                         logger.info("Decoupling {} on vessel {}", decoupler.getPart(), vessel.getName());
-                        decoupler.decouple();
-                        totalDecouplerCount--;
-                        currentStage--;
-                        sleep(500);
+                        if (!decoupler.getDecoupled()) {
+                            decoupler.decouple();
+                            totalDecouplerCount--;
+                            currentStage--;
+                            sleep(500);
+                        }
                     }
                 }
             }
