@@ -79,6 +79,8 @@ public class RunAWDRover {
             boolean forwardActionGroup = leadControl.getActionGroup(2);
             boolean rightActionGroup = leadControl.getActionGroup(3);
             boolean reverseActionGroup = leadControl.getActionGroup(4);
+            boolean gear = !leadControl.getActionGroup(5);
+            float throttle = leadControl.getThrottle();
 
             logger.info("Action group state is 1: " + leadControl.getActionGroup(1)
                     + ", 2 is: " + leadControl.getActionGroup(2)
@@ -89,37 +91,42 @@ public class RunAWDRover {
                 try {
                     if (!v.equals(leader)) {
                         SpaceCenter.Control vesselControl = v.getControl();
+
+                        vesselControl.setThrottle(throttle);
+                        logger.info("Setting throttle to {}", throttle);
+                        vesselControl.setGear(gear);
+
                         // 1 turn left
                         if(leftActionGroup) {
                             if(v.getName().equals(leftWheelName)) {
-                                vesselControl.setRoll(-1);
+                                vesselControl.setRoll(-throttle);
                                 logger.info("Left wheel, setting roll for vessel {} to 1", v.getName());
                             } else {
-                                vesselControl.setRoll(-1);
+                                vesselControl.setRoll(-throttle);
                                 logger.info("Not left wheel, setting roll for vessel {} to -1", v.getName());
                             }
                         } else if(rightActionGroup) {
                             if(v.getName().equals(rightWheelName)) {
-                                vesselControl.setRoll(1);
+                                vesselControl.setRoll(throttle);
                                 logger.info("Right wheel, setting roll for vessel {} to 1", v.getName());
                             } else {
-                                vesselControl.setRoll(1);
+                                vesselControl.setRoll(throttle);
                                 logger.info("Not left wheel, setting roll for vessel {} to -1", v.getName());
                             }
                         } else if(forwardActionGroup) {
                             if(v.getName().equals(leftWheelName)) {
-                                vesselControl.setRoll(1);
+                                vesselControl.setRoll(throttle);
                                 logger.info("Right wheel, setting roll for vessel {} to 1", v.getName());
                             } else {
-                                vesselControl.setRoll(-1);
+                                vesselControl.setRoll(-throttle);
                                 logger.info("Not left wheel, setting roll for vessel {} to -1", v.getName());
                             }
                         } else if(reverseActionGroup) {
                             if(v.getName().equals(leftWheelName)) {
-                                vesselControl.setRoll(-1);
+                                vesselControl.setRoll(-throttle);
                                 logger.info("Left wheel, setting roll for vessel {} to -1", v.getName());
                             } else {
-                                vesselControl.setRoll(1);
+                                vesselControl.setRoll(throttle);
                                 logger.info("Right wheel, setting roll for vessel {} to 1", v.getName());
                             }
                         } else v.getControl().setRoll(0);
