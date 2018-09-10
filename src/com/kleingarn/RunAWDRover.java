@@ -67,11 +67,18 @@ public class RunAWDRover {
         logger.info("squadron peeps: {}", squad.getSquadronVessels().stream().count());
 
         logger.info("Updating controls every {} ms", leadPollingIntervalMillis);
+
+        logger.info("Locking brakes");
+        for(SpaceCenter.Vessel vessel : vessels) {
+            vessel.getControl().setBrakes(true);
+        }
+
         while (true) {
 
             boolean leftActionGroup = leadControl.getActionGroup(1);
             boolean forwardActionGroup = leadControl.getActionGroup(2);
             boolean rightActionGroup = leadControl.getActionGroup(3);
+            boolean reverseActionGroup = leadControl.getActionGroup(4);
 
             logger.info("Action group state is 1: " + leadControl.getActionGroup(1)
                     + ", 2 is: " + leadControl.getActionGroup(2)
@@ -106,6 +113,14 @@ public class RunAWDRover {
                             } else {
                                 vesselControl.setRoll(-1);
                                 logger.info("Not left wheel, setting roll for vessel {} to -1", v.getName());
+                            }
+                        } else if(reverseActionGroup) {
+                            if(v.getName().equals(leftWheelName)) {
+                                vesselControl.setRoll(-1);
+                                logger.info("Left wheel, setting roll for vessel {} to -1", v.getName());
+                            } else {
+                                vesselControl.setRoll(1);
+                                logger.info("Right wheel, setting roll for vessel {} to 1", v.getName());
                             }
                         } else v.getControl().setRoll(0);
                     }
