@@ -8,8 +8,11 @@ import krpc.client.services.SpaceCenter;
 import org.javatuples.Triplet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.swing.BakedArrayList;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
 
@@ -150,5 +153,28 @@ public class Squadron {
             }
             // TODO: consider adding a IllegalArgumentException here when a vessel dies
         }
+    }
+
+    public static List<SpaceCenter.Vessel> getVesselsWithPart(List<SpaceCenter.Vessel> vessels, String partName){
+
+        List<SpaceCenter.Vessel> matchingVessels = new ArrayList<>();
+        for(SpaceCenter.Vessel vessel : vessels) {
+            try {
+                vessel.getParts().getAll().stream().forEach(p -> {
+                    try {
+                        logger.info("Vessel {} part {}", vessel.getName(), p.getName());
+                    } catch (RPCException e) {
+                        e.printStackTrace();
+                    }
+                });
+                List<SpaceCenter.Part> matchingParts = vessel.getParts().withName(partName);
+                if (matchingParts.size() > 0) {
+                    matchingVessels.add(vessel);
+                }
+            } catch (RPCException e) {
+                e.printStackTrace();
+            }
+        }
+        return matchingVessels;
     }
 }
