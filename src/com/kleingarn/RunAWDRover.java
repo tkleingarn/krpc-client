@@ -4,12 +4,9 @@ import krpc.client.Connection;
 import krpc.client.RPCException;
 import krpc.client.services.KRPC;
 import krpc.client.services.SpaceCenter;
-import org.javatuples.Triplet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.rmi.runtime.Log;
 
-import javax.swing.text.html.HTMLDocument;
 import java.io.IOException;
 import java.util.List;
 
