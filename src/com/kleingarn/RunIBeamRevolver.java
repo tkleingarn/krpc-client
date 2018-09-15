@@ -5,6 +5,7 @@ import krpc.client.Connection;
 import krpc.client.RPCException;
 import krpc.client.services.KRPC;
 import krpc.client.services.SpaceCenter;
+import org.javatuples.Triplet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,9 +18,7 @@ public class RunIBeamRevolver {
 
     final static String squadronName = "revolver";
     final static String leaderName = "revolver_lead"; // Mark2Cockpit
-
     final static String leftGunName = "revolver_left"; // ladder1
-
     final static String rightGunName = "revolver_right"; // longAntenna
 
     public static void main(String[] args) throws IOException, RPCException {
@@ -29,7 +28,7 @@ public class RunIBeamRevolver {
         SpaceCenter spaceCenter = SpaceCenter.newInstance(connection);
         logger.info("Connected to kRPC version {}", krpc.getStatus().getVersion());
 
-        // Parts:
+        // Parts used as identifiers:
         // Mark2Cockpit
         // ladder1
         // longAntenna
@@ -49,9 +48,6 @@ public class RunIBeamRevolver {
 //            logger.info("Setting right gun vessel {} name to {}", vessel.getName(), rightGunName);
 //            vessel.setName(rightGunName);
 //        }
-
-
-//        List<SpaceCenter.Vessel> rightWheels = Squadron.getVesselsWithPart();
 
         Squadron squad = Squadron.buildSquadron(
                 squadronName,
@@ -78,33 +74,69 @@ public class RunIBeamRevolver {
 //            boolean rightActionGroup = leadControl.getActionGroup(3);
 //            boolean reverseActionGroup = leadControl.getActionGroup(4);
 //            boolean gear = !leadControl.getActionGroup(5);
-            float throttle = leadControl.getThrottle();
+//            float throttle = leadControl.getThrottle();
 
             logger.info("Action group state is 1: " + leadControl.getActionGroup(1)
                     + ", 2 is: " + leadControl.getActionGroup(2)
                     + ", 3 is: " + leadControl.getActionGroup(3)
             );
 
+
+            final float barrelRoll = 2.0F;
+            final Triplet<Double, Double, Double> customHighlightColor = new Triplet<>(1.0,0.00,0.00);
+
             squad.getSquadronVessels().parallelStream().forEach(v -> {
                 try {
                     if (!v.equals(leader)) {
                         SpaceCenter.Control vesselControl = v.getControl();
 
-//                        vesselControl.setThrottle(throttle);
-//                        logger.info("Setting throttle to {}", throttle);
-//                        vesselControl.setGear(gear);
-
                         // 1 = rotate barrel
-                        // if iBeam is being heated, decouple
                         if(fireActionGroup) {
                             if(v.getName().equals(leftGuns)) {
-                                vesselControl.setRoll(-throttle);
+                                vesselControl.setRoll(barrelRoll);
                                 logger.info("Left gun, setting roll for vessel {} to 1", v.getName());
                             } else {
-                                vesselControl.setRoll(-throttle);
+                                vesselControl.setRoll(-barrelRoll);
                                 logger.info("Not left gun, setting roll for vessel {} to -1", v.getName());
                             }
 
+                            // if iBeam is being heated, decouple
+                            List<SpaceCenter.Decoupler> allDecouplers = v.getParts().getDecouplers();
+                            logger.info("Current vessel " + v.getName() + " has " + allDecouplers.size() + " decouplers");
+
+                            int totalDecouplerCount = allDecouplers.size();
+                            while(totalDecouplerCount > 0) {
+                                logger.info("Vessel {} has {} decouplers", v.getName(), totalDecouplerCount);
+                                for (SpaceCenter.Decoupler decoupler : allDecouplers) {
+                                    List<SpaceCenter.Part> children = decoupler.getPart().getChildren();
+                                    for (SpaceCenter.Part childPart : children) {
+
+                                        int multiplier = 10000;
+                                        logger.info("child part {} thermal conduction: {}, convection: {}, radiation {}, skinToInt {}",
+                                                childPart.getName(),
+                                                childPart.getThermalConductionFlux() * multiplier,
+                                                childPart.getThermalConvectionFlux() * multiplier,
+                                                childPart.getThermalRadiationFlux() * multiplier,
+                                                childPart.getThermalSkinToInternalFlux() * multiplier); // from the surrounding atmosphere
+
+                                        // negative value of skinToInt indicates the skin is heating up
+                                        // child part structuralIBeam2 thermal conduction: 53.19811, convection: -1260.2046, radiation -12968.449, skinToInt 12332.819
+                                        if(childPart.getThermalSkinToInternalFlux() * multiplier > 7000) {
+                                            logger.info("Decoupling {} skinToInt is {}", decoupler.getPart().getName(), childPart.getThermalSkinToInternalFlux() * multiplier);
+                                            try {
+                                                childPart.setHighlighted(true);
+                                                childPart.setHighlightColor(customHighlightColor);
+                                                decoupler.decouple();
+                                                totalDecouplerCount--;
+                                                // sleep(250);
+                                            } catch (UnsupportedOperationException e) {
+                                                logger.error("Error while decoupling");
+                                                e.printStackTrace();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
 
                         } else v.getControl().setRoll(0);
                     }
