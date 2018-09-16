@@ -82,7 +82,8 @@ public class RunIBeamRevolver {
             );
 
 
-            final float barrelRoll = 2.0F;
+            final float barrelRoll = 0.25F;
+            final int tempThreshold = 7000;
             final Triplet<Double, Double, Double> customHighlightColor = new Triplet<>(1.0,0.00,0.00);
 
             squad.getSquadronVessels().parallelStream().forEach(v -> {
@@ -105,10 +106,21 @@ public class RunIBeamRevolver {
                             logger.info("Current vessel " + v.getName() + " has " + allDecouplers.size() + " decouplers");
 
                             int totalDecouplerCount = allDecouplers.size();
-                            while(totalDecouplerCount > 0) {
+                            while(totalDecouplerCount > 1) {
                                 logger.info("Vessel {} has {} decouplers", v.getName(), totalDecouplerCount);
                                 for (SpaceCenter.Decoupler decoupler : allDecouplers) {
                                     List<SpaceCenter.Part> children = decoupler.getPart().getChildren();
+
+                                    if(children.size() == 0) {
+                                        logger.warn("Decoupling empty decoupler.");
+                                        try {
+                                            decoupler.decouple();
+                                            totalDecouplerCount--;
+                                        } catch (UnsupportedOperationException e) {
+                                            logger.error("Error while decoupling");
+                                            e.printStackTrace();
+                                        }
+                                    }
                                     for (SpaceCenter.Part childPart : children) {
 
                                         int multiplier = 10000;
@@ -121,7 +133,7 @@ public class RunIBeamRevolver {
 
                                         // negative value of skinToInt indicates the skin is heating up
                                         // child part structuralIBeam2 thermal conduction: 53.19811, convection: -1260.2046, radiation -12968.449, skinToInt 12332.819
-                                        if(childPart.getThermalSkinToInternalFlux() * multiplier > 7000) {
+                                        if(childPart.getThermalSkinToInternalFlux() * multiplier > tempThreshold) {
                                             logger.info("Decoupling {} skinToInt is {}", decoupler.getPart().getName(), childPart.getThermalSkinToInternalFlux() * multiplier);
                                             try {
                                                 childPart.setHighlighted(true);
