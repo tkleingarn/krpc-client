@@ -160,6 +160,7 @@ public class Squadron {
         List<SpaceCenter.Vessel> matchingVessels = new ArrayList<>();
         for(SpaceCenter.Vessel vessel : vessels) {
             try {
+                logger.info("Printing all parts, looking for part {} on vessel {}", partName, vessel.getName());
                 vessel.getParts().getAll().stream().forEach(p -> {
                     try {
                         logger.info("Vessel {} part {}", vessel.getName(), p.getName());
@@ -169,8 +170,12 @@ public class Squadron {
                 });
                 List<SpaceCenter.Part> matchingParts = vessel.getParts().withName(partName);
                 if (matchingParts.size() > 0) {
+                    logger.info("Found " + matchingParts.size() + " matching parts!");
                     matchingVessels.add(vessel);
+                } else {
+                    logger.warn("Part {} not found on vessel {}", partName, vessel.getName());
                 }
+
             } catch (RPCException e) {
                 e.printStackTrace();
             }
