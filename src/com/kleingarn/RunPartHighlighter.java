@@ -39,14 +39,25 @@ public class RunPartHighlighter {
 //            iBeam.setHighlighted(true);
 //        }
 
-        for(SpaceCenter.Decoupler decoupler : decouplers) {
-            List<SpaceCenter.Part> children = decoupler.getPart().getChildren();
-            for (SpaceCenter.Part childPart : children) {
-                childPart.setHighlightColor(customHighlightColor);
-                childPart.setHighlighted(true);
+        while(true) {
+            if(vessel.getControl().getActionGroup(5)) {
+                for (SpaceCenter.Decoupler decoupler : decouplers) {
+                    List<SpaceCenter.Part> children = decoupler.getPart().getChildren();
+                    for (SpaceCenter.Part childPart : children) {
+                        childPart.setHighlightColor(customHighlightColor);
+                        childPart.setHighlighted(true);
+                    }
+                }
+            } else {
+                for (SpaceCenter.Decoupler decoupler : decouplers) {
+                    List<SpaceCenter.Part> children = decoupler.getPart().getChildren();
+                    for (SpaceCenter.Part childPart : children) {
+                        childPart.setHighlighted(false);
+                    }
+                }
             }
+            sleep(1000);
         }
-        return;
     }
 
     private static void sleep (int sleepTimeInmillis) {
