@@ -13,6 +13,28 @@ public class DockingUtils {
 
     final static Logger logger = LoggerFactory.getLogger(DockingUtils.class);
 
+    public static List<SpaceCenter.Part> getSpecificPartsOnVessel(SpaceCenter.Vessel vessel, String partName){
+        try{
+            List<SpaceCenter.Part> allParts = vessel.getParts().getAll();
+            logger.info("Printing all parts on vessel, searching for {}", partName);
+            printParts(allParts);
+            allParts.removeIf(part -> {
+                try {
+                    return !part.getName().equals(partName);
+                } catch (RPCException e) {
+                    e.printStackTrace();
+                }
+                return false;
+            });
+            logger.info(partName + " count: " + allParts.size());
+            printParts(allParts);
+            return allParts;
+        } catch (RPCException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     public static List<SpaceCenter.Part> getPartsWithDockingPorts(SpaceCenter.Vessel vessel){
         try{
             List<SpaceCenter.Part> dockingPorts = vessel.getParts().getAll();
