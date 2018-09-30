@@ -8,7 +8,9 @@ import org.javatuples.Triplet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.print.Doc;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class RunColorAltitude {
@@ -22,14 +24,41 @@ public class RunColorAltitude {
         SpaceCenter spaceCenter = SpaceCenter.newInstance(connection);
         logger.info("Connected to kRPC version {}", krpc.getStatus().getVersion());
 
+        // mk2SpacePlaneAdapter
+        // mk2Cockpit.Inline
+        // mk2Fuselage
+        // mk2.1m.Bicoupler
+        // turboFanEngine
+        // turboFanEngine
+
         SpaceCenter.Vessel vessel = spaceCenter.getActiveVessel();
         List<SpaceCenter.Part> parts = vessel.getParts().getAll();
+        DockingUtils.printParts(parts);
+
+        List<String> pitchIndicatorPartNames = new ArrayList<>();
+        pitchIndicatorPartNames.add("mk2SpacePlaneAdapter");
+        pitchIndicatorPartNames.add("mk2Cockpit.Inline");
+        pitchIndicatorPartNames.add("mk2Fuselage");
+        pitchIndicatorPartNames.add("mk2.1m.Bicoupler");
+        pitchIndicatorPartNames.add("turboFanEngine");
+
+        // Create list of pitch indicating parts
+        List<SpaceCenter.Part> pitchIndicatorParts = new ArrayList<>();
+        for(SpaceCenter.Part part : parts) {
+            for(String partName : pitchIndicatorPartNames) {
+                if (part.getName().equals(partName)) {
+                    pitchIndicatorParts.add(part);
+                    logger.info("Matching part {} found, adding to pitchIndicatorParts", part.getName());
+                }
+            }
+        }
 
         // consider 26,000m max air breathing altitude;
         Triplet<Double, Double, Double> customHighlightColor = new Triplet<>(1.0, 1.0, 1.0);
         SpaceCenter.Flight vesselFlightTelemetry;
         Double elevation;
         Double prctOfMax;
+        float pitch;
 
         //colors
         final int redElevationThreshold = 200;
@@ -41,16 +70,22 @@ public class RunColorAltitude {
 
         while(true) {
             if(vessel.getControl().getActionGroup(5)) {
+
+                vesselFlightTelemetry = vessel.flight(vessel.getSurfaceReferenceFrame());
+                elevation = vesselFlightTelemetry.getSurfaceAltitude(); //getSurfaceAltitude instead of getMeanAltitude
+                logger.info("Current elevation is " + elevation);
+                prctOfMax = elevation / edgeOfInnerAtmosphereThreshold;
+                logger.info("prctOfMax is " + prctOfMax);
+
+                pitch = vesselFlightTelemetry.getPitch();
+                //float getPitch()
+                //The pitch of the vessel relative to the horizon, in degrees. A value between -90° and +90°.
+                logger.info("Pitch: " + pitch);
+
                 for (SpaceCenter.Part part : parts) {
 
-                    vesselFlightTelemetry = vessel.flight(vessel.getSurfaceReferenceFrame());
-                    elevation = vesselFlightTelemetry.getMeanAltitude();
-                    logger.info("Current elevation is " + elevation);
-                    prctOfMax = elevation / edgeOfInnerAtmosphereThreshold;
-                    logger.info("prctOfMax is " + prctOfMax);
-
                     // red
-                    if(elevation < redElevationThreshold) {
+                    if (elevation < redElevationThreshold) {
                         logger.info("RED");
                         customHighlightColor = new Triplet<>(
                                 1.0,
@@ -58,7 +93,7 @@ public class RunColorAltitude {
                                 0.0);
                     }
                     // yellow
-                    else if(elevation >= redElevationThreshold && elevation < yellowElevationThreshold) {
+                    else if (elevation >= redElevationThreshold && elevation < yellowElevationThreshold) {
                         logger.info("Between red and yellow");
                         // customHighlightColor = new Triplet<>(1.0, 1.0, 0.0); full yellow
                         customHighlightColor = new Triplet<>(
@@ -67,7 +102,7 @@ public class RunColorAltitude {
                                 0.0);
                     }
                     // green
-                    else if(elevation >= yellowElevationThreshold && elevation < greenElevationThreshold) {
+                    else if (elevation >= yellowElevationThreshold && elevation < greenElevationThreshold) {
                         logger.info("Between yellow and green");
                         customHighlightColor = new Triplet<>(
                                 1 - (elevation / greenElevationThreshold),
@@ -75,7 +110,7 @@ public class RunColorAltitude {
                                 0.0);
                     }
                     // cyan
-                    else if(elevation >= greenElevationThreshold && elevation < blueElevationThreshold) {
+                    else if (elevation >= greenElevationThreshold && elevation < blueElevationThreshold) {
                         logger.info("Between green and blue");
                         customHighlightColor = new Triplet<>(
                                 0.0,
@@ -83,7 +118,7 @@ public class RunColorAltitude {
                                 1.0);
                     }
                     // cyan
-                    else if(elevation >= blueElevationThreshold && elevation < edgeOfInnerAtmosphereThreshold) {
+                    else if (elevation >= blueElevationThreshold && elevation < edgeOfInnerAtmosphereThreshold) {
                         logger.info("Between blue and edgeOfInner");
                         customHighlightColor = new Triplet<>(
                                 0.0,
@@ -99,7 +134,7 @@ public class RunColorAltitude {
                                 1 - (elevation / outerAtmosphereThreshold));
                     }
                     // white
-                    else if (elevation > outerAtmosphereThreshold){
+                    else if (elevation > outerAtmosphereThreshold) {
                         logger.info("You are in space now");
                         customHighlightColor = new Triplet<>(1.0, 1.0, 1.0);
                     }
@@ -109,6 +144,44 @@ public class RunColorAltitude {
                             ", " + customHighlightColor.getValue2());
                     part.setHighlightColor(customHighlightColor);
                     part.setHighlighted(true);
+                }
+//                for (SpaceCenter.Part part : pitchIndicatorParts) {
+//                    logger.info("Part {} is a pitch indicator, checking for flash", part.getName());
+//                    if (pitch <= -5 || pitch >= 5) {
+//                        logger.info("Pitch < or > 5, flashing");
+//                        customHighlightColor = new Triplet<>(-customHighlightColor.getValue0(),
+//                                -customHighlightColor.getValue1(),
+//                                -customHighlightColor.getValue2());
+//
+////                        customHighlightColor = new Triplet<>(0.0, 0.0, 0.0);
+//                        part.setHighlighted(false);
+//                        part.setHighlightColor(customHighlightColor);
+//                        part.setHighlighted(true);
+//
+////                        part.setHighlighted(true);
+////                        part.setHighlighted(false);
+////                        part.setHighlighted(true);
+//                    }
+//                }
+
+                // squad.getSquadronVessels().parallelStream().forEach(v -> {
+
+                final Triplet<Double, Double, Double> notLevelCustomHighlightColor = new Triplet<>(-customHighlightColor.getValue0(),
+                        -customHighlightColor.getValue1(),
+                        -customHighlightColor.getValue2());
+
+                if (pitch <= -5 || pitch >= 5) {
+                    logger.info("Pitch < or > 5, flashing");
+                    pitchIndicatorParts.parallelStream().forEach(p -> {
+                        try {
+                            logger.info("Part {} is a pitch indicator, checking for flash", p.getName());
+                            p.setHighlighted(false);
+                            p.setHighlightColor(notLevelCustomHighlightColor);
+                            p.setHighlighted(true);
+                        } catch (RPCException e) {
+                            e.printStackTrace();
+                        }
+                    });
                 }
             } else {
                 for (SpaceCenter.Part part : parts) {
