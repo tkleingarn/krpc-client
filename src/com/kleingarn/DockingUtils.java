@@ -146,7 +146,7 @@ public class DockingUtils {
         return false;
     }
 
-    private static void printParts(List<SpaceCenter.Part> partsList) {
+    public static void printParts(List<SpaceCenter.Part> partsList) {
         partsList.stream().forEach(
             p -> {
                 try {
