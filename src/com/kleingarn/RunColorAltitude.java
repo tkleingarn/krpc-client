@@ -2,8 +2,10 @@ package com.kleingarn;
 
 import krpc.client.Connection;
 import krpc.client.RPCException;
+import krpc.client.services.Drawing;
 import krpc.client.services.KRPC;
 import krpc.client.services.SpaceCenter;
+import org.javatuples.Quartet;
 import org.javatuples.Triplet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +24,7 @@ public class RunColorAltitude {
         Connection connection = Connection.newInstance("Color pulse");
         KRPC krpc = KRPC.newInstance(connection);
         SpaceCenter spaceCenter = SpaceCenter.newInstance(connection);
+        Drawing drawing = Drawing.newInstance(connection);
         logger.info("Connected to kRPC version {}", krpc.getStatus().getVersion());
 
         // mk2SpacePlaneAdapter
@@ -36,6 +39,7 @@ public class RunColorAltitude {
         DockingUtils.printParts(parts);
 
         List<String> pitchIndicatorPartNames = new ArrayList<>();
+        pitchIndicatorPartNames.add("shockConeIntake");
         pitchIndicatorPartNames.add("mk2SpacePlaneAdapter");
         pitchIndicatorPartNames.add("mk2Cockpit.Inline");
         pitchIndicatorPartNames.add("mk2Fuselage");
@@ -145,33 +149,17 @@ public class RunColorAltitude {
                     part.setHighlightColor(customHighlightColor);
                     part.setHighlighted(true);
                 }
-//                for (SpaceCenter.Part part : pitchIndicatorParts) {
-//                    logger.info("Part {} is a pitch indicator, checking for flash", part.getName());
-//                    if (pitch <= -5 || pitch >= 5) {
-//                        logger.info("Pitch < or > 5, flashing");
-//                        customHighlightColor = new Triplet<>(-customHighlightColor.getValue0(),
-//                                -customHighlightColor.getValue1(),
-//                                -customHighlightColor.getValue2());
-//
-////                        customHighlightColor = new Triplet<>(0.0, 0.0, 0.0);
-//                        part.setHighlighted(false);
-//                        part.setHighlightColor(customHighlightColor);
-//                        part.setHighlighted(true);
-//
-////                        part.setHighlighted(true);
-////                        part.setHighlighted(false);
-////                        part.setHighlighted(true);
-//                    }
-//                }
-
-                // squad.getSquadronVessels().parallelStream().forEach(v -> {
 
                 final Triplet<Double, Double, Double> notLevelCustomHighlightColor = new Triplet<>(-customHighlightColor.getValue0(),
                         -customHighlightColor.getValue1(),
                         -customHighlightColor.getValue2());
 
-                if (pitch <= -5 || pitch >= 5) {
-                    logger.info("Pitch < or > 5, flashing");
+                int msAtInvertedColor = (int) Math.abs(pitch * 10);
+                int msAtMainColor = 1000 - msAtInvertedColor;
+                logger.info("ms main color: " + msAtMainColor + " and ms at inverted color: " + msAtInvertedColor);
+
+                sleep(msAtMainColor);
+                if (pitch <= -1 || pitch >= 1) {
                     pitchIndicatorParts.parallelStream().forEach(p -> {
                         try {
                             logger.info("Part {} is a pitch indicator, checking for flash", p.getName());
@@ -183,14 +171,34 @@ public class RunColorAltitude {
                         }
                     });
                 }
+                sleep(msAtInvertedColor);
+
+//                Triplet<Double, Double, Double> textPosition = new Triplet(0.0, 0.0, 0.0);
+//                Quartet<Double, Double, Double, Double> textRotation = new Quartet(0.0, 90.0, 180.0, 0.0);
+//
+//                drawing.clear(true);
+//
+//                drawing.addText(
+//                        String.valueOf((int) elevation.shortValue()),
+//                        vessel.getSurfaceReferenceFrame(),
+//                        textPosition,
+//                        textRotation,
+//                        true);
             } else {
                 for (SpaceCenter.Part part : parts) {
                     part.setHighlighted(false);
                 }
+                sleep(1000);
             }
-            sleep(1000);
         }
     }
+
+    // TextaddText(String text, SpaceCenter.ReferenceFrame referenceFrame,
+    // org.javatuples.Triplet<Double, Double, Double> position,
+    // org.javatuples.Quartet<Double, Double, Double, Double> rotation,
+    // boolean visible)
+
+
 
     private static void sleep (int sleepTimeInmillis) {
         try {
