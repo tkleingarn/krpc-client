@@ -19,6 +19,17 @@ public class RunColorAltitude {
 
     final static Logger logger = LoggerFactory.getLogger(Squadron.class);
 
+    private enum elevationThreshold {
+        RED,
+        YELLOW,
+        GREEN,
+        CYAN,
+        BLUE,
+        WHITE
+    }
+
+    private static boolean elevationChange = false;
+
     public static void main(String[] args) throws IOException, RPCException {
         // init
         Connection connection = Connection.newInstance("Color pulse");
@@ -57,10 +68,12 @@ public class RunColorAltitude {
             }
         }
 
-        // consider 26,000m max air breathing altitude;
+        vessel.getControl().setLights(false);
         Triplet<Double, Double, Double> customHighlightColor = new Triplet<>(1.0, 1.0, 1.0);
         SpaceCenter.Flight vesselFlightTelemetry;
         Double elevation;
+        elevationThreshold currentElevationRange = elevationThreshold.RED;
+        elevationThreshold previousElevationRange = elevationThreshold.RED;
         Double prctOfMax;
         float pitch;
 
@@ -86,66 +99,80 @@ public class RunColorAltitude {
                 //The pitch of the vessel relative to the horizon, in degrees. A value between -90° and +90°.
                 logger.info("Pitch: " + pitch);
 
+                // red
+                if (elevation < redElevationThreshold) {
+                    logger.info("RED");
+                    customHighlightColor = new Triplet<>(
+                            1.0,
+                            0.0,
+                            0.0);
+                    previousElevationRange = currentElevationRange;
+                    currentElevationRange = elevationThreshold.RED;
+                }
+                // yellow
+                else if (elevation >= redElevationThreshold && elevation < yellowElevationThreshold) {
+                    logger.info("Between red and yellow");
+                    // customHighlightColor = new Triplet<>(1.0, 1.0, 0.0); full yellow
+                    customHighlightColor = new Triplet<>(
+                            1.0,
+                            1.0,
+                            0.0);
+                    previousElevationRange = currentElevationRange;
+                    currentElevationRange = elevationThreshold.YELLOW;
+                }
+                // green
+                else if (elevation >= yellowElevationThreshold && elevation < greenElevationThreshold) {
+                    logger.info("Between yellow and green");
+                    customHighlightColor = new Triplet<>(
+                            1 - (elevation / greenElevationThreshold),
+                            1.0,
+                            0.0);
+                    previousElevationRange = currentElevationRange;
+                    currentElevationRange = elevationThreshold.GREEN;
+                }
+                // cyan
+                else if (elevation >= greenElevationThreshold && elevation < blueElevationThreshold) {
+                    logger.info("Between green and blue");
+                    customHighlightColor = new Triplet<>(
+                            0.0,
+                            1 - (elevation / blueElevationThreshold),
+                            1.0);
+                    previousElevationRange = currentElevationRange;
+                    currentElevationRange = elevationThreshold.CYAN;
+                }
+                // cyan
+                else if (elevation >= blueElevationThreshold && elevation < edgeOfInnerAtmosphereThreshold) {
+                    logger.info("Between blue and edgeOfInner");
+                    customHighlightColor = new Triplet<>(
+                            0.0,
+                            1 - (elevation / edgeOfInnerAtmosphereThreshold),
+                            (elevation / edgeOfInnerAtmosphereThreshold));
+                    previousElevationRange = currentElevationRange;
+                    currentElevationRange = elevationThreshold.BLUE;
+                }
+                // blue
+                else if (elevation >= edgeOfInnerAtmosphereThreshold && elevation < outerAtmosphereThreshold) {
+                    logger.info("Outer atmosphere, setting color to blue for all parts");
+                    customHighlightColor = new Triplet<>(
+                            0.0,
+                            0.0,
+                            1 - (elevation / outerAtmosphereThreshold));
+                    previousElevationRange = currentElevationRange;
+                    currentElevationRange = elevationThreshold.BLUE;
+                }
+                // white
+                else if (elevation > outerAtmosphereThreshold) {
+                    logger.info("You are in space now");
+                    customHighlightColor = new Triplet<>(1.0, 1.0, 1.0);
+                    previousElevationRange = currentElevationRange;
+                    currentElevationRange = elevationThreshold.WHITE;
+                }
+
+                // highlight all parts
+                logger.info("Highlighting all parts with color: " + customHighlightColor.getValue0() +
+                        ", " + customHighlightColor.getValue1() +
+                        ", " + customHighlightColor.getValue2());
                 for (SpaceCenter.Part part : parts) {
-
-                    // red
-                    if (elevation < redElevationThreshold) {
-                        logger.info("RED");
-                        customHighlightColor = new Triplet<>(
-                                1.0,
-                                0.0,
-                                0.0);
-                    }
-                    // yellow
-                    else if (elevation >= redElevationThreshold && elevation < yellowElevationThreshold) {
-                        logger.info("Between red and yellow");
-                        // customHighlightColor = new Triplet<>(1.0, 1.0, 0.0); full yellow
-                        customHighlightColor = new Triplet<>(
-                                1.0,
-                                1.0,
-                                0.0);
-                    }
-                    // green
-                    else if (elevation >= yellowElevationThreshold && elevation < greenElevationThreshold) {
-                        logger.info("Between yellow and green");
-                        customHighlightColor = new Triplet<>(
-                                1 - (elevation / greenElevationThreshold),
-                                1.0,
-                                0.0);
-                    }
-                    // cyan
-                    else if (elevation >= greenElevationThreshold && elevation < blueElevationThreshold) {
-                        logger.info("Between green and blue");
-                        customHighlightColor = new Triplet<>(
-                                0.0,
-                                1 - (elevation / blueElevationThreshold),
-                                1.0);
-                    }
-                    // cyan
-                    else if (elevation >= blueElevationThreshold && elevation < edgeOfInnerAtmosphereThreshold) {
-                        logger.info("Between blue and edgeOfInner");
-                        customHighlightColor = new Triplet<>(
-                                0.0,
-                                1 - (elevation / edgeOfInnerAtmosphereThreshold),
-                                (elevation / edgeOfInnerAtmosphereThreshold));
-                    }
-                    // blue
-                    else if (elevation >= edgeOfInnerAtmosphereThreshold && elevation < outerAtmosphereThreshold) {
-                        logger.info("Outer atmosphere, setting color to blue for all parts");
-                        customHighlightColor = new Triplet<>(
-                                0.0,
-                                0.0,
-                                1 - (elevation / outerAtmosphereThreshold));
-                    }
-                    // white
-                    else if (elevation > outerAtmosphereThreshold) {
-                        logger.info("You are in space now");
-                        customHighlightColor = new Triplet<>(1.0, 1.0, 1.0);
-                    }
-
-                    logger.info("Setting custom highlight color " + customHighlightColor.getValue0() +
-                            ", " + customHighlightColor.getValue1() +
-                            ", " + customHighlightColor.getValue2());
                     part.setHighlightColor(customHighlightColor);
                     part.setHighlighted(true);
                 }
@@ -154,16 +181,13 @@ public class RunColorAltitude {
                         -customHighlightColor.getValue1(),
                         -customHighlightColor.getValue2());
 
-                int msAtInvertedColor = (int) Math.abs(pitch * 10);
-                int msAtMainColor = 1000 - msAtInvertedColor;
-                logger.info("ms main color: " + msAtMainColor + " and ms at inverted color: " + msAtInvertedColor);
-
-                sleep(msAtMainColor);
-                if (pitch <= -1 || pitch >= 1) {
-                    pitchIndicatorParts.parallelStream().forEach(p -> {
+                // flash when passing units of 10,000
+//                if (elevation % 10000 < 100) {
+                if(checkElevationChange(previousElevationRange, currentElevationRange)) {
+                    parts.parallelStream().forEach(p -> {
                         try {
-                            logger.info("Part {} is a pitch indicator, checking for flash", p.getName());
                             p.setHighlighted(false);
+                            sleep(50);
                             p.setHighlightColor(notLevelCustomHighlightColor);
                             p.setHighlighted(true);
                         } catch (RPCException e) {
@@ -171,8 +195,31 @@ public class RunColorAltitude {
                         }
                     });
                 }
-                sleep(msAtInvertedColor);
 
+                // optionally flash inverted color to indicate pitch
+                if(vessel.getControl().getActionGroup(6)) {
+                    int msAtInvertedColor = (int) Math.abs(pitch * 10);
+                    int msAtMainColor = 1000 - msAtInvertedColor;
+                    logger.info("ms main color: " + msAtMainColor + " and ms at inverted color: " + msAtInvertedColor);
+
+                    sleep(msAtMainColor);
+                    if (pitch <= -1 || pitch >= 1) {
+                        vessel.getControl().setLights(true);
+                        pitchIndicatorParts.parallelStream().forEach(p -> {
+                            try {
+                                logger.info("Part {} is a pitch indicator, checking for flash", p.getName());
+                                p.setHighlighted(false);
+                                p.setHighlightColor(notLevelCustomHighlightColor);
+                                p.setHighlighted(true);
+                            } catch (RPCException e) {
+                                e.printStackTrace();
+                            }
+                        });
+                    } else {
+                        vessel.getControl().setLights(false);
+                    }
+                    sleep(msAtInvertedColor);
+                }
 //                Triplet<Double, Double, Double> textPosition = new Triplet(0.0, 0.0, 0.0);
 //                Quartet<Double, Double, Double, Double> textRotation = new Quartet(0.0, 90.0, 180.0, 0.0);
 //
@@ -187,6 +234,7 @@ public class RunColorAltitude {
             } else {
                 for (SpaceCenter.Part part : parts) {
                     part.setHighlighted(false);
+                    vessel.getControl().setLights(false);
                 }
                 sleep(1000);
             }
@@ -199,6 +247,14 @@ public class RunColorAltitude {
     // boolean visible)
 
 
+    private static boolean checkElevationChange(elevationThreshold previousElevationRange, elevationThreshold currentElevationRange) {
+        if(!previousElevationRange.equals(currentElevationRange)) {
+            logger.info("Elevation change detected from {} to {}", previousElevationRange.toString(), currentElevationRange.toString());
+            return true;
+        } else {
+            return false;
+        }
+    }
 
     private static void sleep (int sleepTimeInmillis) {
         try {
