@@ -5,12 +5,10 @@ import krpc.client.RPCException;
 import krpc.client.services.Drawing;
 import krpc.client.services.KRPC;
 import krpc.client.services.SpaceCenter;
-import org.javatuples.Quartet;
 import org.javatuples.Triplet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.print.Doc;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,8 +25,6 @@ public class RunColorAltitude {
         BLUE,
         WHITE
     }
-
-    private static boolean elevationChange = false;
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
@@ -95,7 +91,6 @@ public class RunColorAltitude {
                 logger.info("prctOfMax is " + prctOfMax);
 
                 pitch = vesselFlightTelemetry.getPitch();
-                //float getPitch()
                 //The pitch of the vessel relative to the horizon, in degrees. A value between -90° and +90°.
                 logger.info("Pitch: " + pitch);
 
@@ -172,23 +167,29 @@ public class RunColorAltitude {
                 logger.info("Highlighting all parts with color: " + customHighlightColor.getValue0() +
                         ", " + customHighlightColor.getValue1() +
                         ", " + customHighlightColor.getValue2());
-                for (SpaceCenter.Part part : parts) {
-                    part.setHighlightColor(customHighlightColor);
-                    part.setHighlighted(true);
+                int i = 0;
+                try {
+                    for (SpaceCenter.Part part : parts) {
+                        part.setHighlightColor(customHighlightColor);
+                        part.setHighlighted(true);
+                        i++;
+                    }
+                } catch (RPCException e) {
+                    e.printStackTrace();
+                    // remove missing parts
+                    parts.remove(i);
                 }
 
                 final Triplet<Double, Double, Double> notLevelCustomHighlightColor = new Triplet<>(-customHighlightColor.getValue0(),
                         -customHighlightColor.getValue1(),
                         -customHighlightColor.getValue2());
 
-                // flash when passing units of 10,000
-//                if (elevation % 10000 < 100) {
+                // flash when changing stages
                 if(checkElevationChange(previousElevationRange, currentElevationRange)) {
                     parts.parallelStream().forEach(p -> {
                         try {
                             p.setHighlighted(false);
                             sleep(50);
-                            p.setHighlightColor(notLevelCustomHighlightColor);
                             p.setHighlighted(true);
                         } catch (RPCException e) {
                             e.printStackTrace();
@@ -220,17 +221,6 @@ public class RunColorAltitude {
                     }
                     sleep(msAtInvertedColor);
                 }
-//                Triplet<Double, Double, Double> textPosition = new Triplet(0.0, 0.0, 0.0);
-//                Quartet<Double, Double, Double, Double> textRotation = new Quartet(0.0, 90.0, 180.0, 0.0);
-//
-//                drawing.clear(true);
-//
-//                drawing.addText(
-//                        String.valueOf((int) elevation.shortValue()),
-//                        vessel.getSurfaceReferenceFrame(),
-//                        textPosition,
-//                        textRotation,
-//                        true);
             } else {
                 for (SpaceCenter.Part part : parts) {
                     part.setHighlighted(false);
@@ -240,12 +230,6 @@ public class RunColorAltitude {
             }
         }
     }
-
-    // TextaddText(String text, SpaceCenter.ReferenceFrame referenceFrame,
-    // org.javatuples.Triplet<Double, Double, Double> position,
-    // org.javatuples.Quartet<Double, Double, Double, Double> rotation,
-    // boolean visible)
-
 
     private static boolean checkElevationChange(elevationThreshold previousElevationRange, elevationThreshold currentElevationRange) {
         if(!previousElevationRange.equals(currentElevationRange)) {
