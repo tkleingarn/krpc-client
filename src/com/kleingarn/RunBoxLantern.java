@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import static java.util.stream.Collectors.toList;
 
@@ -29,7 +30,7 @@ public class RunBoxLantern {
     }
 
     // final static String squadronName = "lantern octagon 02 Probe";
-    final static String vesselPrefix = "lantern octagon 02 Probe";
+    final static String vesselPrefix = "lantern octagon 03 Probe";
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
@@ -54,16 +55,43 @@ public class RunBoxLantern {
         Squadron.printActiveVesselsFromList(squadronVessels);
 
         while(true) {
-            for (SpaceCenter.Vessel vessel : squadronVessels) {
+
+            SpaceCenter.SASMode sasMode = SpaceCenter.SASMode.RADIAL;
+            if( spaceCenter.getActiveVessel().getControl().getActionGroup(5) == true) {
+                sasMode = SpaceCenter.SASMode.NORMAL;
+            }
+            final SpaceCenter.SASMode finalSASMode = sasMode;
+
+            squadronVessels.parallelStream().forEach(v -> {
                 try {
-                    logger.info("Highlighting parts on vessel {}", vessel.getName());
-                    highlightBasedOnElevation(vessel);
+                    logger.info("Highlighting parts on vessel {}", v.getName());
+                    highlightBasedOnElevation(v);
+                    SpaceCenter.Control vesselControl = v.getControl();
+                    vesselControl.setSASMode(finalSASMode);
+
+                    Random r = new Random();
+                    float minThrottle = 0.95F;
+                    vesselControl.setThrottle(
+                        minThrottle + r.nextFloat() * (1 - minThrottle)
+                    );
                 } catch (IllegalArgumentException e) {
                     e.printStackTrace();
-                    squadronVessels.remove(vessel);
+                    squadronVessels.remove(v);
+                } catch (RPCException e) {
+                    e.printStackTrace();
                 }
-            }
-            sleep(1000);
+            });
+
+//            for (SpaceCenter.Vessel vessel : squadronVessels) {
+//                try {
+//                    logger.info("Highlighting parts on vessel {}", vessel.getName());
+//                    highlightBasedOnElevation(vessel);
+//                } catch (IllegalArgumentException e) {
+//                    e.printStackTrace();
+//                    squadronVessels.remove(vessel);
+//                }
+//            }
+            // sleep(1000);
         }
     }
 
@@ -184,18 +212,18 @@ public class RunBoxLantern {
             parts.remove(i);
         }
 
-        // flash when changing stages
-        if (checkElevationChange(previousElevationRange, currentElevationRange)) {
-            parts.parallelStream().forEach(p -> {
-                try {
-                    p.setHighlighted(false);
-                    sleep(50);
-                    p.setHighlighted(true);
-                } catch (RPCException e) {
-                    e.printStackTrace();
-                }
-            });
-        }
+//        // flash when changing stages
+//        if (checkElevationChange(previousElevationRange, currentElevationRange)) {
+//            parts.parallelStream().forEach(p -> {
+//                try {
+//                    p.setHighlighted(false);
+//                    // sleep(50);
+//                    p.setHighlighted(true);
+//                } catch (RPCException e) {
+//                    e.printStackTrace();
+//                }
+//            });
+//        }
     }
 
     private static boolean checkElevationChange(elevationThreshold previousElevationRange, elevationThreshold currentElevationRange) {
