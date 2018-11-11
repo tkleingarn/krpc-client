@@ -41,17 +41,23 @@ public class RunColorAltitude {
         // turboFanEngine
         // turboFanEngine
 
+        // mk2Cockpit.Standard
+        // mk2FuselageShortLiquid
+
         SpaceCenter.Vessel vessel = spaceCenter.getActiveVessel();
         List<SpaceCenter.Part> parts = vessel.getParts().getAll();
         DockingUtils.printParts(parts);
 
         List<String> pitchIndicatorPartNames = new ArrayList<>();
+        pitchIndicatorPartNames.add("noseCone");
         pitchIndicatorPartNames.add("shockConeIntake");
         pitchIndicatorPartNames.add("mk2SpacePlaneAdapter");
         pitchIndicatorPartNames.add("mk2Cockpit.Inline");
+        pitchIndicatorPartNames.add("mk2Cockpit.Standard");
         pitchIndicatorPartNames.add("mk2Fuselage");
+        pitchIndicatorPartNames.add("mk2FuselageShortLiquid");
         pitchIndicatorPartNames.add("mk2.1m.Bicoupler");
-        pitchIndicatorPartNames.add("turboFanEngine");
+        // pitchIndicatorPartNames.add("turboFanEngine");
 
         // Create list of pitch indicating parts
         List<SpaceCenter.Part> pitchIndicatorParts = new ArrayList<>();

@@ -57,10 +57,24 @@ public class RunBoxLantern {
         while(true) {
 
             SpaceCenter.SASMode sasMode = SpaceCenter.SASMode.RADIAL;
-            if( spaceCenter.getActiveVessel().getControl().getActionGroup(5) == true) {
+            float randPitch =  0;
+            SpaceCenter.Control activeVesselControl = spaceCenter.getActiveVessel().getControl();
+
+            if( activeVesselControl.getActionGroup(5)) {
                 sasMode = SpaceCenter.SASMode.NORMAL;
+            } else if( activeVesselControl.getActionGroup(6)) {
+                sasMode = SpaceCenter.SASMode.ANTI_NORMAL;
+            } else if( activeVesselControl.getActionGroup(7)) {
+                sasMode = SpaceCenter.SASMode.STABILITY_ASSIST;
+                randPitch =   0.10F;  // minPitch + r.nextFloat() * (1 - minPitch);
+                logger.info("Random pitch is " + randPitch);
+
+            } else if( activeVesselControl.getActionGroup(8)) {
+                sasMode = SpaceCenter.SASMode.ANTI_RADIAL;
             }
+
             final SpaceCenter.SASMode finalSASMode = sasMode;
+            final float finalPitch = randPitch;
 
             squadronVessels.parallelStream().forEach(v -> {
                 try {
@@ -68,9 +82,10 @@ public class RunBoxLantern {
                     highlightBasedOnElevation(v);
                     SpaceCenter.Control vesselControl = v.getControl();
                     vesselControl.setSASMode(finalSASMode);
+                    vesselControl.setPitch(finalPitch);
 
                     Random r = new Random();
-                    float minThrottle = 0.95F;
+                    float minThrottle = 0.98F;
                     vesselControl.setThrottle(
                         minThrottle + r.nextFloat() * (1 - minThrottle)
                     );
@@ -81,17 +96,6 @@ public class RunBoxLantern {
                     e.printStackTrace();
                 }
             });
-
-//            for (SpaceCenter.Vessel vessel : squadronVessels) {
-//                try {
-//                    logger.info("Highlighting parts on vessel {}", vessel.getName());
-//                    highlightBasedOnElevation(vessel);
-//                } catch (IllegalArgumentException e) {
-//                    e.printStackTrace();
-//                    squadronVessels.remove(vessel);
-//                }
-//            }
-            // sleep(1000);
         }
     }
 
@@ -136,7 +140,6 @@ public class RunBoxLantern {
         // yellow
         else if (elevation >= redElevationThreshold && elevation < yellowElevationThreshold) {
             logger.info("Between red and yellow");
-            // customHighlightColor = new Triplet<>(1.0, 1.0, 0.0); full yellow
             customHighlightColor = new Triplet<>(
                     1.0,
                     1.0,
@@ -212,18 +215,18 @@ public class RunBoxLantern {
             parts.remove(i);
         }
 
-//        // flash when changing stages
-//        if (checkElevationChange(previousElevationRange, currentElevationRange)) {
-//            parts.parallelStream().forEach(p -> {
-//                try {
-//                    p.setHighlighted(false);
-//                    // sleep(50);
-//                    p.setHighlighted(true);
-//                } catch (RPCException e) {
-//                    e.printStackTrace();
-//                }
-//            });
-//        }
+        // flash when changing stages
+        if (checkElevationChange(previousElevationRange, currentElevationRange)) {
+            parts.parallelStream().forEach(p -> {
+                try {
+                    p.setHighlighted(false);
+                    // sleep(50);
+                    p.setHighlighted(true);
+                } catch (RPCException e) {
+                    e.printStackTrace();
+                }
+            });
+        }
     }
 
     private static boolean checkElevationChange(elevationThreshold previousElevationRange, elevationThreshold currentElevationRange) {
