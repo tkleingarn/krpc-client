@@ -40,32 +40,33 @@ public class RunParadrop {
                 int currentStage = vessel.getControl().getCurrentStage();
                 logger.info("Current stage is {}", currentStage);
 
-                // get parts in stage
-
                 SpaceCenter.Parts allParts = vessel.getParts();
                 DockingUtils.printParts(allParts.getAll());
-                List<SpaceCenter.Part> partsInCurrentStage = allParts.inStage(currentStage - 1);
+                List<SpaceCenter.Part> partsInNextStage = allParts.inStage(currentStage - 1);
 
-                for(SpaceCenter.Part p : partsInCurrentStage) {
-                    logger.info("Part in current stage is {}", p.getName());
-//                    [main] INFO com.kleingarn.Squadron - Part in current stage is Separator.0
-//                            [main] INFO com.kleingarn.Squadron - Part in current stage is kerbalEVAfemale
+                for(SpaceCenter.Part p : partsInNextStage) {
+                    logger.info("Part in stage " + (currentStage - 1) + " is " + p.getName());
+                    // setting up Kerbals in decouplers differentiates the stages
+                    // kerbalEVAVintage is a vintage suit
+                    // kerbalEVAfemale is a female kerbal, why differentiate based on gender?
+                    // [main] INFO com.kleingarn.DockingUtils - Part name: kerbalEVA, Stage: 2
+                    // [main] INFO com.kleingarn.DockingUtils - Part name: kerbalEVAVintage, Stage: 2
+
+                    //smallRadialEngine
+                    if(p.getName().equals("smallRadialEngine")) {
+                        p.getEngine().setActive(true);
+                    }
+
                     if(p.getName().contains("kerbalEVA")) {
                         logger.info("In current stage for {}", p.getName());
-
                         List<SpaceCenter.Parachute> parachutes = allParts.getParachutes();
 
                         for (SpaceCenter.Parachute parachute : parachutes) {
-                            if(parachute.getPart().getStage() == currentStage) {
+                            if(parachute.getPart().getStage() == currentStage - 1) {
                                 logger.info("Deploying parachute in stage");
                                 parachute.deploy();
-                                vessel.getControl().activateNextStage();
                             }
                         }
-//                        List<SpaceCenter.Part> partsOnKerbal = p.getChildren();
-//                        for(SpaceCenter.Part kerbalParts : partsOnKerbal) {
-//                            p.getParachute().deploy();
-//                        }
                     }
                 }
 
