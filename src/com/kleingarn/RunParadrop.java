@@ -4,9 +4,11 @@ import krpc.client.Connection;
 import krpc.client.RPCException;
 import krpc.client.services.KRPC;
 import krpc.client.services.SpaceCenter;
+import org.javatuples.Triplet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class RunParadrop {
@@ -37,9 +39,22 @@ public class RunParadrop {
 
         int currentStage = vessel.getControl().getCurrentStage();
         SpaceCenter.Parts allParts = vessel.getParts();
-        DockingUtils.printParts(allParts.getAll());
+
+        List<SpaceCenter.Part> parts = vessel.getParts().getAll();
+        List<SpaceCenter.Part> kerbalParts = new ArrayList<>();
+        for(SpaceCenter.Part part : parts) {
+            if(part.getName().contains("kerbalEVA")) {
+                kerbalParts.add(part);
+            }
+        }
+        DockingUtils.printParts(kerbalParts);
 
         while(true) {
+            if (vessel.getControl().getActionGroup(6)) {
+                highlightKerbalEVAParts(kerbalParts, true);
+            } else {
+                highlightKerbalEVAParts(kerbalParts, false);
+            }
             if (vessel.getControl().getActionGroup(5)) {
 
                 logger.info("Proceeding with paradrop");
@@ -56,16 +71,25 @@ public class RunParadrop {
                         }
                     }
 
-                    sleep(3000);
+                    sleep(500);
                     for (SpaceCenter.Part p : partsInNextStage) {
-                        logger.info("Part in stage " + (nextStage) + " is " + p.getName());
-                        if (p.getName().equals("smallRadialEngine")) {
-                            logger.info("Activating engine, parachutes have been deployed");
-                            p.getEngine().setActive(true);
+                        try {
+                            logger.info("Part in stage " + (nextStage) + " is " + p.getName());
+                            if (p.getName().equals("smallRadialEngine")) {
+                                logger.info("Activating engine, parachutes have been deployed");
+                                p.getEngine().setActive(true);
+                            }
+                            if (vessel.getControl().getActionGroup(6)) {
+                                highlightKerbalEVAParts(kerbalParts, true);
+                            } else {
+                                highlightKerbalEVAParts(kerbalParts, false);
+                            }
+                        } catch (RPCException e) {
+                            logger.warn("RPCException occured while firing detatchment engines");
+                            e.printStackTrace();
                         }
                     }
                 }
-
             } // end of action group detection while loop
             sleep(1000);
         }
@@ -76,6 +100,23 @@ public class RunParadrop {
             Thread.sleep(sleepTimeInmillis);
         } catch (InterruptedException e) {
             e.printStackTrace();
+        }
+    }
+
+    private static void highlightKerbalEVAParts(List<SpaceCenter.Part> parts, boolean highlighted) {
+        // highlight parts
+        Triplet<Double, Double, Double> customHighlightColor = new Triplet<>(
+                0.0,
+                0.9,
+                0.8);
+        try {
+            for (SpaceCenter.Part part : parts) {
+                part.setHighlightColor(customHighlightColor);
+                part.setHighlighted(highlighted);
+            }
+        } catch (RPCException e) {
+            e.printStackTrace();
+            // remove missing parts
         }
     }
 }
