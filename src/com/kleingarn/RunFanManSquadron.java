@@ -30,7 +30,7 @@ public class RunFanManSquadron {
                 leaderName,
                 spaceCenter);
 
-        int leadPollingIntervalMillis = 10;
+        int leadPollingIntervalMillis = 1000;
         SpaceCenter.Vessel leader = squad.getSquadLeader();
         List<SpaceCenter.Vessel> vessels = squad.getSquadronVessels();
         SpaceCenter.Control leadControl = leader.getControl();
@@ -104,10 +104,12 @@ public class RunFanManSquadron {
             });
 
             if (leader.getControl().getActionGroup(5) && chutesDeployed != true) {
+                logger.info("Deploying chutes on all Kerbals");
                 for (SpaceCenter.Vessel v : vessels) {
-                    deployChutes(v);
+                    deployChutes(spaceCenter, v);
                 }
                 chutesDeployed = true;
+                spaceCenter.setActiveVessel(leader);
             }
 
             sleep(leadPollingIntervalMillis);
@@ -126,19 +128,17 @@ public class RunFanManSquadron {
         }
     }
 
-    private static void deployChutes(SpaceCenter.Vessel vessel) {
-//            try {
-//                // get parts in stage
-//                SpaceCenter.Parts allParts = vessel.getParts();
-//                List<SpaceCenter.Parachute> parachutes = allParts.getParachutes();
-//
-//                for (SpaceCenter.Parachute parachute : parachutes) {
-//                    parachute.getPart().getStage();
-//                    vessel.getControl().activateNextStage();
-//                }
-//            } catch (RPCException e) {
-//                e.printStackTrace();
-//            }
+    private static void deployChutes(SpaceCenter spaceCenter, SpaceCenter.Vessel vessel) {
+            try {
+                spaceCenter.setActiveVessel(vessel);
+                SpaceCenter.Parts allParts = vessel.getParts();
+                List<SpaceCenter.Parachute> parachutes = allParts.getParachutes();
+                for (SpaceCenter.Parachute parachute : parachutes) {
+                    parachute.deploy();
+                }
+            } catch (RPCException e) {
+                e.printStackTrace();
+            }
     }
 
     private static void sleep (int sleepTimeInmillis) {
