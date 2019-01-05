@@ -108,6 +108,11 @@ public class Squadron {
         return squadLeader;
     }
 
+    public void removeVesselFromSquadron(SpaceCenter.Vessel vessel) {
+        List<SpaceCenter.Vessel> squadronVessels = getSquadronVessels();
+        squadronVessels.remove(vessel);
+    }
+
     public void setSquadLeader(SpaceCenter.Vessel vessel) {
         Squadron.squadLeader = vessel;
     }

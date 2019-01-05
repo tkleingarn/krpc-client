@@ -37,7 +37,7 @@ public class RunFanManSquadron {
     final static Triplet<Double, Double, Double> timeToPeak = new Triplet<>(2.8, 2.8, 2.8);
 
     // default value is 1 degree in each axis
-    final static Triplet<Double, Double, Double> attenuationAngle = new Triplet<>(1.0, 1.0, 1.0);
+    final static Triplet<Double, Double, Double> attenuationAngle = new Triplet<>(3.0, 3.0, 3.0);
 
     final static boolean tweakAp = true;
 
@@ -69,6 +69,10 @@ public class RunFanManSquadron {
         logger.info("Updating autopilot for squad every {} ms", leadPollingIntervalMillis);
         boolean chutesDeployed = false;
 
+
+        List<SpaceCenter.Decoupler> allDecouplers = spaceCenter.getActiveVessel().getParts().getDecouplers();
+        logger.info("Current vessel has " + allDecouplers.size() + " decouplers");
+
         while (true) {
 
             leadControl = leader.getControl();
@@ -81,11 +85,15 @@ public class RunFanManSquadron {
                     deployChutes(spaceCenter, v);
                 }
                 chutesDeployed = true;
+                leadControl.setActionGroup(5, false);
             }
 
-
-
-
+            if (leader.getControl().getActionGroup(6)) {
+                decoupleAllKerbals(allDecouplers, leader, 250);
+                spaceCenter.setActiveVessel(leader);
+                leadControl.setActionGroup(5, false);
+                leader.setName("downWithTheShip");
+            }
 
             sleep(leadPollingIntervalMillis);
         }
@@ -125,6 +133,9 @@ public class RunFanManSquadron {
                 }
             } catch(RPCException e){
                 e.printStackTrace();
+            } catch(IllegalArgumentException e) {
+                e.printStackTrace();
+                squad.removeVesselFromSquadron(v);
             }
         });
     }
@@ -152,6 +163,24 @@ public class RunFanManSquadron {
             } catch (RPCException e) {
                 e.printStackTrace();
             }
+    }
+
+    private static void decoupleAllKerbals(List<SpaceCenter.Decoupler> allDecouplers, SpaceCenter.Vessel vessel, int msDelay) {
+        int totalDecouplerCount = allDecouplers.size();
+        while(totalDecouplerCount > 0) {
+            try {
+                logger.info("Vessel {} has {} decouplers", vessel.getName(), allDecouplers.size());
+                for (SpaceCenter.Decoupler decoupler : allDecouplers) {
+                    if (!decoupler.getDecoupled()) {
+                        decoupler.decouple();
+                        totalDecouplerCount--;
+                        sleep(msDelay);
+                    }
+                }
+            } catch(RPCException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private static void sleep (int sleepTimeInmillis) {
