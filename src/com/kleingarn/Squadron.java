@@ -65,7 +65,8 @@ public class Squadron {
                 return false;}).collect(toList());
             logger.info("##### Listing squad leader #####");
             printActiveVesselsFromList(squadLeaderList);
-            SpaceCenter.Vessel leadVessel = squadLeaderList.get(0);
+            // SpaceCenter.Vessel leadVessel = squadLeaderList.get(0);
+            SpaceCenter.Vessel leadVessel = spaceCenter.getActiveVessel();
             logger.info("Squad leader set = {} ", leadVessel.getName());
 
             return new Squadron(vesselPrefix, squadronVessels, leadVessel);

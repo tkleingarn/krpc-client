@@ -15,8 +15,31 @@ public class RunFanManSquadron {
 
     final static Logger logger = LoggerFactory.getLogger(Squadron.class);
 
-    final static String leaderName = "fan man lead";
-    final static String squadronName = "fan man";
+    static String leaderName = "triplane";
+    final static String squadronName = "triplane";
+
+    // v1 impl, listen for changes from leader using callbacks, unused here
+    // squad.getAndSetUpdatesFromLeader(spaceCenter, connection);
+
+    // Triplet<Double, Double, Double> = pitch, roll, yaw
+
+    // default value is 0.5 seconds for each axis
+    // maximum amount of time that the vessel should need to come to a complete stop
+    // limits the maximum angular velocity of the vessel
+    final static Triplet<Double, Double, Double> stoppingTime = new Triplet<>(1.0, 1.0, 1.0);
+
+    // default value is 5 seconds for each axis
+    // smaller value will make the autopilot turn the vessel towards the target more quickly
+    // decreasing the value too much could result in overshoot
+    final static Triplet<Double, Double, Double> decelerationTime = new Triplet<>(5.0, 5.0, 5.0);
+
+    // default is 3 seconds in each axis
+    final static Triplet<Double, Double, Double> timeToPeak = new Triplet<>(2.8, 2.8, 2.8);
+
+    // default value is 1 degree in each axis
+    final static Triplet<Double, Double, Double> attenuationAngle = new Triplet<>(1.0, 1.0, 1.0);
+
+    final static boolean tweakAp = true;
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
@@ -41,67 +64,16 @@ public class RunFanManSquadron {
         logger.info("squad leader: {}", squad.getSquadLeader().getName());
         logger.info("squadron peeps: {}", squad.getSquadronVessels().stream().count());
 
-        // v1 impl, listen for changes from leader using callbacks, unused here
-        // squad.getAndSetUpdatesFromLeader(spaceCenter, connection);
-
-        // Triplet<Double, Double, Double> = pitch, roll, yaw
-
-        // default value is 0.5 seconds for each axis
-        // maximum amount of time that the vessel should need to come to a complete stop
-        // limits the maximum angular velocity of the vessel
-        Triplet<Double, Double, Double> stoppingTime = new Triplet<>(0.5, 0.5, 0.5);
-
-        // default value is 5 seconds for each axis
-        // smaller value will make the autopilot turn the vessel towards the target more quickly
-        // decreasing the value too much could result in overshoot
-        Triplet<Double, Double, Double> decelerationTime = new Triplet<>(2.0, 2.0, 2.0);
-
-        // default is 3 seconds in each axis
-        Triplet<Double, Double, Double> timeToPeak = new Triplet<>(2.0, 2.0, 2.0);
-
-        // default value is 1 degree in each axis
-        Triplet<Double, Double, Double> attenuationAngle = new Triplet<>(1.0, 1.0, 1.0);
-
-        boolean tweakAp = true;
-
         // v2
         // periodically get all config from leader and apply to squadron
         logger.info("Updating autopilot for squad every {} ms", leadPollingIntervalMillis);
         boolean chutesDeployed = false;
 
         while (true) {
-            squad.getSquadronVessels().parallelStream().forEach(v -> {
-                SpaceCenter.Control vesselControl = null;
-                SpaceCenter.AutoPilot vesselAutoPilot = null;
-                try {
-                    vesselControl = v.getControl();
-                    vesselAutoPilot = v.getAutoPilot();
-                    if (!v.equals(leader)) {
-                        if (tweakAp) {
-                            vesselAutoPilot.setStoppingTime(stoppingTime);
-                            vesselAutoPilot.setDecelerationTime(decelerationTime);
-                            vesselAutoPilot.setTimeToPeak(timeToPeak);
-                            vesselAutoPilot.setAttenuationAngle(attenuationAngle);
-                        }
-                        // stage
-                        if (vesselControl.getCurrentStage() < leadControl.getCurrentStage()) {
-                            vesselControl.activateNextStage();
-                        }
 
-                        // set non-directional controls
-                        setNonDirectionalControls(vesselControl, leadControl);
-
-                        // set flight telemetry targets
-                        vesselAutoPilot.setTargetPitch(leadFlightTelemetry.getPitch());
-                        vesselAutoPilot.setTargetRoll(leadFlightTelemetry.getRoll());
-                        vesselAutoPilot.setTargetHeading(leadFlightTelemetry.getHeading());
-                        vesselAutoPilot.setTargetDirection(leadFlightTelemetry.getDirection());
-                        vesselAutoPilot.engage();
-                    }
-                } catch(RPCException e){
-                    e.printStackTrace();
-                }
-            });
+            leadControl = leader.getControl();
+            leadFlightTelemetry = leader.flight(leader.getSurfaceReferenceFrame());
+            setAutopilotTargets(squad, leader, leadFlightTelemetry, leadControl);
 
             if (leader.getControl().getActionGroup(5) && chutesDeployed != true) {
                 logger.info("Deploying chutes on all Kerbals");
@@ -109,11 +81,52 @@ public class RunFanManSquadron {
                     deployChutes(spaceCenter, v);
                 }
                 chutesDeployed = true;
-                spaceCenter.setActiveVessel(leader);
             }
+
+
+
+
 
             sleep(leadPollingIntervalMillis);
         }
+    }
+
+    public static void setAutopilotTargets(Squadron squad,
+                                           SpaceCenter.Vessel leader,
+                                           SpaceCenter.Flight leadFlightTelemetry,
+                                           SpaceCenter.Control leadControl) {
+        squad.getSquadronVessels().parallelStream().forEach(v -> {
+            SpaceCenter.Control vesselControl = null;
+            SpaceCenter.AutoPilot vesselAutoPilot = null;
+            try {
+                vesselControl = v.getControl();
+                vesselAutoPilot = v.getAutoPilot();
+                if (!v.equals(leader)) {
+                    if (tweakAp) {
+                        vesselAutoPilot.setStoppingTime(stoppingTime);
+                        vesselAutoPilot.setDecelerationTime(decelerationTime);
+                        vesselAutoPilot.setTimeToPeak(timeToPeak);
+                        vesselAutoPilot.setAttenuationAngle(attenuationAngle);
+                    }
+                    // stage
+                    if (vesselControl.getCurrentStage() < leadControl.getCurrentStage()) {
+                        vesselControl.activateNextStage();
+                    }
+
+                    // set non-directional controls
+                    setNonDirectionalControls(vesselControl, leadControl);
+
+                    // set flight telemetry targets
+                    vesselAutoPilot.setTargetPitch(leadFlightTelemetry.getPitch());
+                    vesselAutoPilot.setTargetRoll(leadFlightTelemetry.getRoll());
+                    vesselAutoPilot.setTargetHeading(leadFlightTelemetry.getHeading());
+                    vesselAutoPilot.setTargetDirection(leadFlightTelemetry.getDirection());
+                    vesselAutoPilot.engage();
+                }
+            } catch(RPCException e){
+                e.printStackTrace();
+            }
+        });
     }
 
     public static void setNonDirectionalControls(SpaceCenter.Control vesselControl,
