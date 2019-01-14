@@ -37,7 +37,7 @@ public class RunFanManSquadron {
     final static Triplet<Double, Double, Double> timeToPeak = new Triplet<>(2.8, 2.8, 2.8);
 
     // default value is 1 degree in each axis
-    final static Triplet<Double, Double, Double> attenuationAngle = new Triplet<>(3.0, 3.0, 3.0);
+    final static Triplet<Double, Double, Double> attenuationAngle = new Triplet<>(2.0, 2.0, 2.0);
 
     final static boolean tweakAp = true;
 
@@ -76,8 +76,12 @@ public class RunFanManSquadron {
         while (true) {
 
             leadControl = leader.getControl();
-            leadFlightTelemetry = leader.flight(leader.getSurfaceReferenceFrame());
+//            leadFlightTelemetry = leader.flight(leader.getSurfaceReferenceFrame());
             setAutopilotTargets(squad, leader, leadFlightTelemetry, leadControl);
+
+            for (int i=0; i<10; i++) {
+                setActionGroupsOnSquadron(i, leadControl.getActionGroup(i), vessels);
+            }
 
             if (leader.getControl().getActionGroup(5) && chutesDeployed != true) {
                 logger.info("Deploying chutes on all Kerbals");
@@ -89,10 +93,16 @@ public class RunFanManSquadron {
             }
 
             if (leader.getControl().getActionGroup(6)) {
-                decoupleAllKerbals(allDecouplers, leader, 250);
+                decoupleAllKerbals(allDecouplers, leader, 200);
                 spaceCenter.setActiveVessel(leader);
                 leadControl.setActionGroup(5, false);
+                leadControl.setActionGroup(6, false);
                 leader.setName("downWithTheShip");
+            }
+
+            if (leader.getControl().getActionGroup(7)) {
+                repackChutes(spaceCenter, spaceCenter.getActiveVessel());
+                leadControl.setActionGroup(7, false);
             }
 
             sleep(leadPollingIntervalMillis);
@@ -152,17 +162,45 @@ public class RunFanManSquadron {
         }
     }
 
+    private static void setActionGroupsOnSquadron(int groupNumber, boolean groupState, List<SpaceCenter.Vessel> squadronVessels) {
+
+        for(SpaceCenter.Vessel vessel : squadronVessels) {
+            try {
+                vessel.getControl().setActionGroup(groupNumber, groupState);
+            } catch (RPCException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     private static void deployChutes(SpaceCenter spaceCenter, SpaceCenter.Vessel vessel) {
             try {
                 spaceCenter.setActiveVessel(vessel);
                 SpaceCenter.Parts allParts = vessel.getParts();
                 List<SpaceCenter.Parachute> parachutes = allParts.getParachutes();
                 for (SpaceCenter.Parachute parachute : parachutes) {
+                    logger.info("Deploying parachute {}", parachute);
                     parachute.deploy();
                 }
             } catch (RPCException e) {
                 e.printStackTrace();
             }
+    }
+
+    private static void repackChutes(SpaceCenter spaceCenter, SpaceCenter.Vessel vessel) {
+        try {
+            spaceCenter.setActiveVessel(vessel);
+            SpaceCenter.Parts allParts = vessel.getParts();
+
+            List<SpaceCenter.Parachute> parachutes = allParts.getParachutes();
+            for (SpaceCenter.Parachute parachute : parachutes) {
+                // there is no repack API, not much we can do here
+                parachute.getPart().getParachute().arm();
+            }
+
+        } catch (RPCException e) {
+            e.printStackTrace();
+        }
     }
 
     private static void decoupleAllKerbals(List<SpaceCenter.Decoupler> allDecouplers, SpaceCenter.Vessel vessel, int msDelay) {
