@@ -1,5 +1,6 @@
 package com.kleingarn;
 
+import com.sun.xml.internal.ws.client.sei.ResponseBuilder;
 import krpc.client.Connection;
 import krpc.client.RPCException;
 import krpc.client.services.KRPC;
@@ -10,6 +11,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+
+import static java.util.stream.Collectors.toList;
 
 public class RunFanManSquadron {
 
@@ -77,7 +80,7 @@ public class RunFanManSquadron {
 
             leadControl = leader.getControl();
 //            leadFlightTelemetry = leader.flight(leader.getSurfaceReferenceFrame());
-            setAutopilotTargets(squad, leader, leadFlightTelemetry, leadControl);
+            // setAutopilotTargets(squad, leader, leadFlightTelemetry, leadControl);
 
             for (int i=0; i<10; i++) {
                 setActionGroupsOnSquadron(i, leadControl.getActionGroup(i), vessels);
@@ -93,16 +96,17 @@ public class RunFanManSquadron {
             }
 
             if (leader.getControl().getActionGroup(6)) {
-                decoupleAllKerbals(allDecouplers, leader, 200);
+                decoupleAllKerbals(spaceCenter, allDecouplers, leader, 200);
                 spaceCenter.setActiveVessel(leader);
+
                 leadControl.setActionGroup(5, false);
                 leadControl.setActionGroup(6, false);
                 leader.setName("downWithTheShip");
             }
 
             if (leader.getControl().getActionGroup(7)) {
-                repackChutes(spaceCenter, spaceCenter.getActiveVessel());
-                leadControl.setActionGroup(7, false);
+                setTargetPitchOnKamikazes(spaceCenter, leadFlightTelemetry);
+                // leadControl.setActionGroup(7, false);
             }
 
             sleep(leadPollingIntervalMillis);
@@ -136,7 +140,11 @@ public class RunFanManSquadron {
 
                     // set flight telemetry targets
                     vesselAutoPilot.setTargetPitch(leadFlightTelemetry.getPitch());
+                    logger.info("lead pitch {}", leadFlightTelemetry.getPitch());
+
                     vesselAutoPilot.setTargetRoll(leadFlightTelemetry.getRoll());
+                    logger.info("lead roll {}", leadFlightTelemetry.getRoll());
+
                     vesselAutoPilot.setTargetHeading(leadFlightTelemetry.getHeading());
                     vesselAutoPilot.setTargetDirection(leadFlightTelemetry.getDirection());
                     vesselAutoPilot.engage();
@@ -161,6 +169,46 @@ public class RunFanManSquadron {
             e.printStackTrace();
         }
     }
+
+    // set autopilot on all vessels other than the active vessel to target pitch 0
+    public static void setTargetPitchOnKamikazes(SpaceCenter spaceCenter, SpaceCenter.Flight leadFlightTelemetry) {
+        try {
+            List<SpaceCenter.Vessel> allVessels = spaceCenter.getVessels();
+            List<SpaceCenter.Vessel> kamikazeSquadron = allVessels.stream().filter(v -> {
+                try {
+                    return (v.getName().contains(squadronName)
+                            && !v.getName().contains("Debris")
+                            && !v.equals(spaceCenter.getActiveVessel())
+                    );
+                } catch (RPCException e) {
+                    e.printStackTrace();
+                }
+                return false;
+            }).collect(toList());
+            logger.info("Kamikaze squadron vessels identified");
+            Squadron.printActiveVesselsFromList(kamikazeSquadron);
+
+            kamikazeSquadron.parallelStream().forEach(v -> {
+                try {
+                    SpaceCenter.AutoPilot vesselAutoPilot = v.getAutoPilot();
+                    SpaceCenter.Control vesselControl = v.getControl();
+
+                    vesselAutoPilot.setTargetPitch(-20);
+                    vesselAutoPilot.setTargetRoll(0);
+                    vesselAutoPilot.setTargetHeading(leadFlightTelemetry.getHeading());
+                    vesselAutoPilot.setTargetDirection(leadFlightTelemetry.getDirection());
+
+                    vesselControl.setThrottle(1);
+                    vesselAutoPilot.engage();
+                } catch (RPCException e) {
+                    e.printStackTrace();
+                }
+            });
+        } catch (RPCException e) {
+            e.printStackTrace();
+        }
+    }
+
 
     private static void setActionGroupsOnSquadron(int groupNumber, boolean groupState, List<SpaceCenter.Vessel> squadronVessels) {
 
@@ -203,21 +251,46 @@ public class RunFanManSquadron {
         }
     }
 
-    private static void decoupleAllKerbals(List<SpaceCenter.Decoupler> allDecouplers, SpaceCenter.Vessel vessel, int msDelay) {
+    private static void decoupleAllKerbals(SpaceCenter spaceCenter, List<SpaceCenter.Decoupler> allDecouplers, SpaceCenter.Vessel vessel, int msDelay) {
         int totalDecouplerCount = allDecouplers.size();
         while(totalDecouplerCount > 0) {
             try {
                 logger.info("Vessel {} has {} decouplers", vessel.getName(), allDecouplers.size());
                 for (SpaceCenter.Decoupler decoupler : allDecouplers) {
+
                     if (!decoupler.getDecoupled()) {
+
                         decoupler.decouple();
                         totalDecouplerCount--;
+
+//                        for (SpaceCenter.Vessel v : spaceCenter.getVessels()) {
+//                            if (v.getName().contains(squadronName) &&
+//                                    !v.getName().contains("Debris") &&
+//
+//                                    // need to figure this out!
+//                                    v.getParts().getDecouplers().size() == 0);
+//                            activateAllEnginesMaxThrottle(vessel);
+//                        }
                         sleep(msDelay);
                     }
                 }
             } catch(RPCException e) {
                 e.printStackTrace();
             }
+        }
+    }
+
+    private static void activateAllEnginesMaxThrottle(SpaceCenter.Vessel vessel) {
+        try {
+            for(SpaceCenter.Engine engine : vessel.getParts().getEngines()) {
+                engine.setActive(true);
+            }
+            vessel.getControl().setThrottle(1);
+            vessel.getControl().setSAS(true);
+        } catch (RPCException e) {
+            e.printStackTrace();
+        } catch (NullPointerException e) {
+            e.printStackTrace();
         }
     }
 
