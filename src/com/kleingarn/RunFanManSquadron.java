@@ -198,7 +198,7 @@ public class RunFanManSquadron {
                     vesselAutoPilot.setTargetHeading(leadFlightTelemetry.getHeading());
                     vesselAutoPilot.setTargetDirection(leadFlightTelemetry.getDirection());
 
-                    vesselControl.setThrottle(1);
+                    vesselControl.setThrottle(0.75F);
                     vesselAutoPilot.engage();
                 } catch (RPCException e) {
                     e.printStackTrace();
