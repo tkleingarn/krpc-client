@@ -12,16 +12,16 @@ import java.util.List;
 
 public class RunValor {
 
-    final static Logger logger = LoggerFactory.getLogger(RunValor.class);
+    final static Logger logger = LoggerFactory.getLogger(Squadron.class);
 
     final static String squadronName = "valor";
     final static String leaderName = "valor_lead"; // Mark2Cockpit
 
-    final static String leftPropName = "left_prop"; // longAntenna
+    final static String leftPropName = "valor_left_prop"; // longAntenna
 
-    final static String rightPropName = "right_prop"; // ladder1
+    final static String rightPropName = "valor_right_prop"; // ladder1
 
-    final static String centralPivotName = "central_pivot"; // TBD cube sat part name
+    final static String centralPivotName = "valor_central_pivot"; // TBD cube sat part name
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
@@ -31,6 +31,7 @@ public class RunValor {
         logger.info("Connected to kRPC version {}", krpc.getStatus().getVersion());
 
 
+        // valor_lead part mk3Cockpit.Shuttle
         SpaceCenter.Vessel lead = spaceCenter.getActiveVessel();
         logger.info("Setting lead vessel {} name to {}", lead.getName(), leaderName);
         lead.setName(leaderName);
@@ -38,19 +39,21 @@ public class RunValor {
         // decouple the props and rename them
         spaceCenter.getActiveVessel().getControl().activateNextStage();
 
-        List<SpaceCenter.Vessel> leftProps = Squadron.getVesselsWithPart(spaceCenter.getVessels(), leftPropName);
+        List<SpaceCenter.Vessel> leftProps = Squadron.getVesselsWithPart(spaceCenter.getVessels(), "longAntenna");
         for (SpaceCenter.Vessel vessel : leftProps) {
             logger.info("Setting left prop vessel {} name to {}", vessel.getName(), leftPropName);
             vessel.setName(leftPropName);
         }
 
-        List<SpaceCenter.Vessel> rightProps = Squadron.getVesselsWithPart(spaceCenter.getVessels(), rightPropName);
+        List<SpaceCenter.Vessel> rightProps = Squadron.getVesselsWithPart(spaceCenter.getVessels(), "ladder1");
         for (SpaceCenter.Vessel vessel : rightProps) {
             logger.info("Setting right prop vessel {} name to {}", vessel.getName(), rightPropName);
             vessel.setName(rightPropName);
         }
         logger.info("Lead and props identified.");
         spaceCenter.setActiveVessel(lead);
+
+        // probeCoreCube
 
         Squadron squad = Squadron.buildSquadron(
                 squadronName,
@@ -78,22 +81,24 @@ public class RunValor {
             boolean gear = !leadControl.getActionGroup(5);
             float throttle = leadControl.getThrottle();
 
-            logger.info("Action group state is 1: " + leadControl.getActionGroup(1)
-                    + ", 2 is: " + leadControl.getActionGroup(2)
-                    + ", 3 is: " + leadControl.getActionGroup(3)
-            );
+//            logger.info("Action group state is 1: " + leadControl.getActionGroup(1)
+//                    + ", 2 is: " + leadControl.getActionGroup(2)
+//                    + ", 3 is: " + leadControl.getActionGroup(3)
+//            );
 
             squad.getSquadronVessels().parallelStream().forEach(v -> {
                 try {
                     // spin left prop
                     if(v.getName().equals(leftPropName)) {
                         SpaceCenter.Control vesselControl = v.getControl();
-                        vesselControl.setRoll(-throttle);
+                        vesselControl.setRoll(throttle);
+                        logger.info("Controlling vessel {}, setting throttle on roll axis");
                     }
                     // spin right prop
                     else if(v.getName().equals(rightPropName)) {
                         SpaceCenter.Control vesselControl = v.getControl();
-                        vesselControl.setRoll(throttle);
+                        vesselControl.setRoll(-throttle);
+                        logger.info("Controlling vessel {}, setting throttle on roll axis");
                     }
 
 //                    if (!v.equals(leader)) {
