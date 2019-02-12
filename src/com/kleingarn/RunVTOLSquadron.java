@@ -15,8 +15,8 @@ public class RunVTOLSquadron {
 
     final static Logger logger = LoggerFactory.getLogger(Squadron.class);
 
-    static String leaderName = "lead";
-    final static String squadronName = "vtol mini";
+    static String leaderName = "triplane";
+    final static String squadronName = "triplane";
 
     // v1 impl, listen for changes from leader using callbacks, unused here
     // squad.getAndSetUpdatesFromLeader(spaceCenter, connection);
@@ -91,7 +91,13 @@ public class RunVTOLSquadron {
             }
 
             for (int i=0; i<10; i++) {
-                setActionGroupsOnSquadron(i, leadControl.getActionGroup(i), vessels);
+                try {
+                    setActionGroupsOnSquadron(i, leadControl.getActionGroup(i), vessels);
+                } catch (IllegalArgumentException e) {
+                    vessels.remove(i);
+                    logger.error("Caught IllegalArgumentException, removed vessel from squadron" + i);
+                    e.printStackTrace();
+                }
             }
 
             if (leader.getControl().getActionGroup(5)) {
@@ -114,6 +120,7 @@ public class RunVTOLSquadron {
                                            SpaceCenter.Vessel leader,
                                            SpaceCenter.Flight leadFlightTelemetry,
                                            SpaceCenter.Control leadControl) {
+        logger.info("Applying lead flight telemetry to autopilot for all squadron vessels.");
         squad.getSquadronVessels().parallelStream().forEach(v -> {
             SpaceCenter.Control vesselControl = null;
             SpaceCenter.AutoPilot vesselAutoPilot = null;
@@ -138,11 +145,11 @@ public class RunVTOLSquadron {
 
                     // set flight telemetry targets
                     vesselAutoPilot.setTargetPitch(leadFlightTelemetry.getPitch());
-                    logger.info("lead pitch {}", leadFlightTelemetry.getPitch());
+                    // logger.info("lead pitch {}", leadFlightTelemetry.getPitch());
 
                     vesselAutoPilot.setRollThreshold(rollThreshold);
                     vesselAutoPilot.setTargetRoll(leadFlightTelemetry.getRoll());
-                    logger.info("lead roll {}", leadFlightTelemetry.getRoll());
+                    // logger.info("lead roll {}", leadFlightTelemetry.getRoll());
 
                     vesselAutoPilot.setTargetHeading(leadFlightTelemetry.getHeading());
                     vesselAutoPilot.setTargetDirection(leadFlightTelemetry.getDirection());
@@ -165,8 +172,9 @@ public class RunVTOLSquadron {
             vessels.parallelStream().forEach(v -> {
                 try {
                     SpaceCenter.AutoPilot vesselAutoPilot = v.getAutoPilot();
-                    vesselAutoPilot.setTargetPitch(5);
+                    vesselAutoPilot.setTargetPitch(4);
                     vesselAutoPilot.setTargetRoll(0);
+                    v.getControl().setThrottle(0.6F);
                 } catch (RPCException e) {
                     e.printStackTrace();
                 }

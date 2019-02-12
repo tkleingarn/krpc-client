@@ -86,22 +86,16 @@ public class RunFanManSquadron {
                 setActionGroupsOnSquadron(i, leadControl.getActionGroup(i), vessels);
             }
 
-            if (leader.getControl().getActionGroup(5) && chutesDeployed != true) {
-                logger.info("Deploying chutes on all Kerbals");
-                for (SpaceCenter.Vessel v : vessels) {
-                    deployChutes(spaceCenter, v);
-                }
-                chutesDeployed = true;
+            if (leader.getControl().getActionGroup(5)) {
+                logger.info("Deploying even chutes");
+                deployChutes(spaceCenter, leader, true);
                 leadControl.setActionGroup(5, false);
             }
 
             if (leader.getControl().getActionGroup(6)) {
-                decoupleAllKerbals(spaceCenter, allDecouplers, leader, 200);
-                spaceCenter.setActiveVessel(leader);
-
-                leadControl.setActionGroup(5, false);
+                logger.info("Deploying odd chutes");
+                deployChutes(spaceCenter, leader, false);
                 leadControl.setActionGroup(6, false);
-                leader.setName("downWithTheShip");
             }
 
             if (leader.getControl().getActionGroup(7)) {
@@ -221,18 +215,24 @@ public class RunFanManSquadron {
         }
     }
 
-    private static void deployChutes(SpaceCenter spaceCenter, SpaceCenter.Vessel vessel) {
-            try {
-                spaceCenter.setActiveVessel(vessel);
-                SpaceCenter.Parts allParts = vessel.getParts();
-                List<SpaceCenter.Parachute> parachutes = allParts.getParachutes();
-                for (SpaceCenter.Parachute parachute : parachutes) {
-                    logger.info("Deploying parachute {}", parachute);
-                    parachute.deploy();
+    private static void deployChutes(SpaceCenter spaceCenter, SpaceCenter.Vessel vessel, boolean even) {
+        try {
+            spaceCenter.setActiveVessel(vessel);
+            SpaceCenter.Parts allParts = vessel.getParts();
+
+            List<SpaceCenter.Parachute> parachutes = allParts.getParachutes();
+            for (int i = 0; i < parachutes.size(); i++) {
+                if(even && (i % 2 == 0)) {
+                    logger.info("Deploying even parachute {}", parachutes.get(i));
+                    parachutes.get(i).deploy();
+                } else if (!even && (i % 2 != 0)) {
+                    logger.info("Deploying odd parachute {}", parachutes.get(i));
+                    parachutes.get(i).deploy();
                 }
-            } catch (RPCException e) {
-                e.printStackTrace();
             }
+        } catch (RPCException e) {
+            e.printStackTrace();
+        }
     }
 
     private static void repackChutes(SpaceCenter spaceCenter, SpaceCenter.Vessel vessel) {
