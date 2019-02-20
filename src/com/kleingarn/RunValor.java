@@ -16,13 +16,9 @@ public class RunValor {
 
     final static String squadronName = "valor";
     final static String leaderName = "valor_lead"; // Mark2Cockpit
-
     final static String leftPropName = "valor_left_prop"; // longAntenna
-
     final static String rightPropName = "valor_right_prop"; // ladder1
-
-    // probeCoreCube
-    final static String centralPivotName = "valor_central_pivot"; // TBD cube sat part name
+    final static String centralPivotName = "valor_central_pivot"; // probeCoreCube
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
@@ -30,7 +26,6 @@ public class RunValor {
         KRPC krpc = KRPC.newInstance(connection);
         SpaceCenter spaceCenter = SpaceCenter.newInstance(connection);
         logger.info("Connected to kRPC version {}", krpc.getStatus().getVersion());
-
 
         // valor_lead part mk3Cockpit.Shuttle
         SpaceCenter.Vessel lead = spaceCenter.getActiveVessel();
@@ -73,15 +68,17 @@ public class RunValor {
 
         while (true) {
 
+            leadControl = leader.getControl();
             float throttle = leadControl.getThrottle();
 
-            if (leader.getControl().getActionGroup(5)) {
+            if (leadControl.getActionGroup(5)) {
 
                 // detach next stage
                 spaceCenter.getActiveVessel().getControl().activateNextStage();
 
                 // identify probeCoreCube
-                List<SpaceCenter.Vessel> centralPivotVessel = Squadron.getVesselsWithPart(spaceCenter.getVessels(), "probeCoreCube");
+                // part with sensorBarometer
+                List<SpaceCenter.Vessel> centralPivotVessel = Squadron.getVesselsWithPart(spaceCenter.getVessels(), "sensorBarometer");
                 for (SpaceCenter.Vessel vessel : centralPivotVessel) {
                     logger.info("Setting right prop vessel {} name to {}", vessel.getName(), centralPivotName);
                     vessel.setName(centralPivotName);
@@ -93,43 +90,62 @@ public class RunValor {
                 logger.info("squad leader: {}", squad.getSquadLeader().getName());
                 logger.info("squadron peeps: {}", squad.getSquadronVessels().stream().count());
 
-                leader.getControl().setActionGroup(5, false);
+                leadControl.setActionGroup(5, false);
             }
 
             squad.getSquadronVessels().parallelStream().forEach(v -> {
 
-                SpaceCenter.AutoPilot vesselAutoPilot = null;
                 try {
+
+                    // move props
+                    if (v.getName().equals(centralPivotName)) {
+                        logger.info("Acting on central pivot");
+                        if (leader.getControl().getActionGroup(1)) {
+                            logger.info("HORIZONTAL");
+                            v.getControl().setInputMode(SpaceCenter.ControlInputMode.OVERRIDE);
+                            v.getControl().setPitch(-0.5F);
+                            v.getControl().setSASMode(SpaceCenter.SASMode.STABILITY_ASSIST);
+                            v.getControl().setSAS(true);
+                            logger.info("current pitch: {}", v.flight(v.getSurfaceReferenceFrame()).getPitch());
+                        } else if (leader.getControl().getActionGroup(2)) {
+                            logger.info("VERTICAL");
+//                            v.getControl().setInputMode(SpaceCenter.ControlInputMode.ADDITIVE);
+//                            v.getControl().setPitch(0);
+//                            v.getControl().setSASMode(SpaceCenter.SASMode.RADIAL);
+//                            v.getControl().setSAS(true);
+                            v.getControl().setInputMode(SpaceCenter.ControlInputMode.OVERRIDE);
+                            v.getControl().setPitch(0.5F);
+                            v.getControl().setSASMode(SpaceCenter.SASMode.STABILITY_ASSIST);
+                            v.getControl().setSAS(true);
+                            logger.info("current pitch: {}", v.flight(v.getSurfaceReferenceFrame()).getPitch());
+                        } else {
+                            logger.info("NO-OP");
+                            v.getControl().setPitch(0);
+                            v.getControl().setSASMode(SpaceCenter.SASMode.STABILITY_ASSIST);
+                            v.getControl().setSAS(true);
+                            logger.info("current pitch: {}", v.flight(v.getSurfaceReferenceFrame()).getPitch());
+                        }
+
+                        // need a way to set pitch 
+
+                    }
+
                     // spin left prop
                     if(v.getName().equals(leftPropName)) {
+                        v.getControl().setSAS(false);
                         SpaceCenter.Control vesselControl = v.getControl();
+                        vesselControl = v.getControl();
                         vesselControl.setRoll(throttle);
-                        logger.info("Controlling vessel {}, setting throttle on roll axis");
                     }
                     // spin right prop
                     else if(v.getName().equals(rightPropName)) {
+                        v.getControl().setSAS(false);
                         SpaceCenter.Control vesselControl = v.getControl();
+                        vesselControl = v.getControl();
                         vesselControl.setRoll(-throttle);
-                        logger.info("Controlling vessel {}, setting throttle on roll axis");
                     }
-                    else if (v.getName().equals(centralPivotName)) {
+                    logger.info("Controlling vessel {}, setting throttle on roll axis", v.getName());
 
-                        logger.info("doing stuff with central pivot");
-                        // starting pitch is 0.0
-                        logger.info("current pitch is {}", v.getControl().getPitch());
-                        vesselAutoPilot = v.getAutoPilot();
-
-                        if (leader.getControl().getActionGroup(1)) {
-                            logger.info("flying horizontal, matching pitch with leader");
-                            SpaceCenter.Flight leadReferenceFrame = v.flight(lead.getSurfaceReferenceFrame());
-                            vesselAutoPilot.setTargetPitch(leadReferenceFrame.getPitch());
-                        }
-                        else if (leader.getControl().getActionGroup(2)) {
-                            logger.info("flying vertical, radial out");
-                            vesselAutoPilot.setTargetPitch(0);
-                        }
-                        vesselAutoPilot.engage();
-                    }
                 } catch(RPCException e){
                     e.printStackTrace();
                 }
@@ -138,9 +154,6 @@ public class RunValor {
             sleep(leadPollingIntervalMillis);
         }
     }
-
-
-
 
     private static void sleep (int sleepTimeInmillis) {
         try {
