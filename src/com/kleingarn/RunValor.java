@@ -93,66 +93,69 @@ public class RunValor {
                 leadControl.setActionGroup(5, false);
             }
 
-            squad.getSquadronVessels().parallelStream().forEach(v -> {
+            try {
+                squad.getSquadronVessels().parallelStream().forEach(v -> {
 
-                try {
+                    try {
 
-                    // move props
-                    if (v.getName().equals(centralPivotName)) {
-                        logger.info("Acting on central pivot");
-                        if (leader.getControl().getActionGroup(1)) {
-                            logger.info("HORIZONTAL");
-                            v.getControl().setInputMode(SpaceCenter.ControlInputMode.OVERRIDE);
-                            v.getControl().setPitch(-0.5F);
-                            v.getControl().setSASMode(SpaceCenter.SASMode.STABILITY_ASSIST);
-                            v.getControl().setSAS(true);
-                            logger.info("current pitch: {}", v.flight(v.getSurfaceReferenceFrame()).getPitch());
-                        } else if (leader.getControl().getActionGroup(2)) {
-                            logger.info("VERTICAL");
-//                            v.getControl().setInputMode(SpaceCenter.ControlInputMode.ADDITIVE);
-//                            v.getControl().setPitch(0);
-//                            v.getControl().setSASMode(SpaceCenter.SASMode.RADIAL);
-//                            v.getControl().setSAS(true);
-                            v.getControl().setInputMode(SpaceCenter.ControlInputMode.OVERRIDE);
-                            v.getControl().setPitch(0.5F);
-                            v.getControl().setSASMode(SpaceCenter.SASMode.STABILITY_ASSIST);
-                            v.getControl().setSAS(true);
-                            logger.info("current pitch: {}", v.flight(v.getSurfaceReferenceFrame()).getPitch());
-                        } else {
-                            logger.info("NO-OP");
-                            v.getControl().setPitch(0);
-                            v.getControl().setSASMode(SpaceCenter.SASMode.STABILITY_ASSIST);
-                            v.getControl().setSAS(true);
-                            logger.info("current pitch: {}", v.flight(v.getSurfaceReferenceFrame()).getPitch());
+                        v.getControl().setActionGroup(6, leader.getControl().getActionGroup(6));
+
+                        // spin left prop
+                        if (v.getName().equals(leftPropName)) {
+                            v.getControl().setSAS(false);
+                            SpaceCenter.Control vesselControl = v.getControl();
+                            vesselControl.setRoll(-throttle);
                         }
+                        // spin right prop
+                        else if (v.getName().equals(rightPropName)) {
+                            v.getControl().setSAS(false);
+                            SpaceCenter.Control vesselControl = v.getControl();
+                            vesselControl.setRoll(throttle);
+                        }
+                        logger.info("Controlling vessel {}, setting throttle on roll axis", v.getName());
 
-                        // need a way to set pitch 
-
+                    } catch (RPCException e) {
+                        e.printStackTrace();
                     }
+                });
 
-                    // spin left prop
-                    if(v.getName().equals(leftPropName)) {
-                        v.getControl().setSAS(false);
-                        SpaceCenter.Control vesselControl = v.getControl();
-                        vesselControl = v.getControl();
-                        vesselControl.setRoll(throttle);
-                    }
-                    // spin right prop
-                    else if(v.getName().equals(rightPropName)) {
-                        v.getControl().setSAS(false);
-                        SpaceCenter.Control vesselControl = v.getControl();
-                        vesselControl = v.getControl();
-                        vesselControl.setRoll(-throttle);
-                    }
-                    logger.info("Controlling vessel {}, setting throttle on roll axis", v.getName());
+                // TODO: (tkleingarn) add centralPivot back if undocked
 
-                } catch(RPCException e){
-                    e.printStackTrace();
-                }
-            });
 
+            } catch (IllegalArgumentException e) {
+                logger.error("[ERROR] Probably lost a vessel");
+                e.printStackTrace();
+                squad = removeCentralPivotIfDockingPortsDocked(lead, squad, spaceCenter);
+            }
             sleep(leadPollingIntervalMillis);
         }
+    }
+
+    private static Squadron removeCentralPivotIfDockingPortsDocked(SpaceCenter.Vessel vessel, Squadron squadron, SpaceCenter spaceCenter) {
+        try {
+            List<SpaceCenter.DockingPort> dockingPorts = vessel.getParts().getDockingPorts();
+            for(SpaceCenter.DockingPort port : dockingPorts) {
+                if(port.getState().equals(SpaceCenter.DockingPortState.DOCKED)) {
+//                    for (SpaceCenter.Vessel v : squadron.getSquadronVessels()) {
+//                        if (v.getName().equals(centralPivotName)) {
+//                            squadron.removeVesselFromSquadron(v);
+//                            logger.warn("[WARN] Removing vessel from squadron");
+//                        }
+//                    }
+                    squadron = Squadron.buildSquadron(
+                            squadronName,
+                            leaderName,
+                            spaceCenter);
+
+                    logger.warn("[WARN] Reset squadron");
+                    return squadron;
+                }
+            }
+        } catch (RPCException e) {
+            e.printStackTrace();
+        }
+        logger.info("[INFO] No changes to squadron");
+        return squadron;
     }
 
     private static void sleep (int sleepTimeInmillis) {
