@@ -8,7 +8,6 @@ import krpc.client.services.SpaceCenter;
 import org.javatuples.Triplet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.swing.BakedArrayList;
 
 import java.util.ArrayList;
 import java.util.List;
