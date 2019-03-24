@@ -16,7 +16,7 @@ public class RunSpaceSquadron {
     final static Logger logger = LoggerFactory.getLogger(Squadron.class);
 
     static String leaderName = "lead";
-    final static String squadronName = "multi-launch";
+    final static String squadronName = "air";
 
     // v1 impl, listen for changes from leader using callbacks, unused here
     // squad.getAndSetUpdatesFromLeader(spaceCenter, connection);

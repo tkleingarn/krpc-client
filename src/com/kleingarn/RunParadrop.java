@@ -7,7 +7,6 @@ import krpc.client.services.SpaceCenter;
 import org.javatuples.Triplet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.rmi.runtime.Log;
 
 import javax.print.Doc;
 import java.io.IOException;
