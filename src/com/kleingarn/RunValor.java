@@ -99,6 +99,7 @@ public class RunValor {
                     try {
 
                         v.getControl().setActionGroup(6, leader.getControl().getActionGroup(6));
+                        v.getControl().setGear(leader.getControl().getGear());
 
                         // spin left prop
                         if (v.getName().equals(leftPropName)) {

@@ -15,8 +15,8 @@ public class RunVTOLSquadron {
 
     final static Logger logger = LoggerFactory.getLogger(Squadron.class);
 
-    static String leaderName = "triplane";
-    final static String squadronName = "triplane";
+    static String leaderName = "lead";
+    final static String squadronName = "air";
 
     // v1 impl, listen for changes from leader using callbacks, unused here
     // squad.getAndSetUpdatesFromLeader(spaceCenter, connection);
@@ -54,6 +54,14 @@ public class RunVTOLSquadron {
         KRPC krpc = KRPC.newInstance(connection);
         SpaceCenter spaceCenter = SpaceCenter.newInstance(connection);
         logger.info("Connected to kRPC version {}", krpc.getStatus().getVersion());
+
+
+        List<SpaceCenter.Vessel> potentialLeadList = Squadron.getVesselsWithPart(spaceCenter.getVessels(), "longAntenna");
+        for (SpaceCenter.Vessel vessel : potentialLeadList) {
+            logger.info("Setting vessel {} name to ", vessel.getName(), leaderName);
+            vessel.setName(leaderName);
+            spaceCenter.setActiveVessel(vessel);
+        }
 
         Squadron squad = Squadron.buildSquadron(
                 squadronName,
