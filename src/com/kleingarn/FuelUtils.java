@@ -5,6 +5,7 @@ import krpc.client.services.SpaceCenter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class FuelUtils {
@@ -32,7 +33,7 @@ public class FuelUtils {
     }
 
 
-    public static void dropEmptyTanks(SpaceCenter.Vessel vessel, List<SpaceCenter.Part> partsWithDecouplers) {
+    public static void activateNextStageIfFuelEmpty(SpaceCenter.Vessel vessel, List<SpaceCenter.Part> partsWithDecouplers) {
 
         logger.info("Checking if tanks are empty");
         try {
@@ -46,6 +47,25 @@ public class FuelUtils {
         } catch (RPCException e) {
             e.printStackTrace();
         }
+    }
+    
+    private static List<SpaceCenter.Part> getEmptyTanks(List<SpaceCenter.Part> parts) {
+        try {
+            List<SpaceCenter.Part> emptyTanks = new ArrayList<>();
+            for (SpaceCenter.Part part : parts) {
+                List<SpaceCenter.Resource> resources = part.getResources().getAll();
+                for (SpaceCenter.Resource resource : resources) {
+                    if (resource.getAmount() == 0) {
+                        emptyTanks.add(part);
+                    }
+                }
+            }
+            logger.info("Found {} empty tanks", emptyTanks.size());
+            return emptyTanks;
+        } catch (RPCException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     private static boolean areAnyTanksEmpty(SpaceCenter.Vessel vessel, List<SpaceCenter.Part> partsWithDecouplers) throws RPCException{
