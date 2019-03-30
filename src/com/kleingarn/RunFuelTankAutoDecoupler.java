@@ -24,10 +24,16 @@ public class RunFuelTankAutoDecoupler {
         SpaceCenter spaceCenter = SpaceCenter.newInstance(connection);
         logger.info("Connected to kRPC version {}", krpc.getStatus().getVersion());
 
+        SpaceCenter.Vessel activeVessel = spaceCenter.getActiveVessel();
+        List<SpaceCenter.Part> partsWithDecouplers;
+
         while (true) {
-            SpaceCenter.Vessel activeVessel = spaceCenter.getActiveVessel();
-            List<SpaceCenter.Part> partsWithDecouplers = getDecoupleableParts(activeVessel);
-            activateNextStageIfFuelEmpty(activeVessel, partsWithDecouplers);
+            partsWithDecouplers = getDecoupleableParts(activeVessel);
+
+            // Requires that staging is properly set as if you were controlling manually
+            if(FuelUtils.areAnyTanksEmpty(activeVessel, partsWithDecouplers)) {
+                activeVessel.getControl().activateNextStage();
+            }
             sleep(1000);
         }
     }
