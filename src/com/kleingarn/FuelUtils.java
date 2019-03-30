@@ -5,6 +5,7 @@ import krpc.client.services.SpaceCenter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class FuelUtils {
@@ -14,17 +15,15 @@ public class FuelUtils {
     public static List<SpaceCenter.Part> getDecoupleableParts(SpaceCenter.Vessel vessel){
 
         try{
-            List<SpaceCenter.Part> partsWithDecouplers = vessel.getParts().getAll();
-            partsWithDecouplers.removeIf(part -> {
-                try {
-                    return part.getDecoupleStage() == -1;
-                } catch (RPCException e) {
-                    e.printStackTrace();
+            List<SpaceCenter.Part> partsWithDecouplers = new ArrayList<>();
+            for(SpaceCenter.Part part : vessel.getParts().getAll()) {
+                if(part.getDecoupleStage() != -1) {
+                    partsWithDecouplers.add(part);
                 }
-                return false;
-            });
-            printParts(partsWithDecouplers);
+            }
+            logger.info("Found {} parts with decouplers", partsWithDecouplers.size());
             return partsWithDecouplers;
+
         } catch (RPCException e) {
             e.printStackTrace();
         }
@@ -32,7 +31,7 @@ public class FuelUtils {
     }
 
 
-    public static void dropEmptyTanks(SpaceCenter.Vessel vessel, List<SpaceCenter.Part> partsWithDecouplers) {
+    public static void activateNextStageIfFuelEmpty(SpaceCenter.Vessel vessel, List<SpaceCenter.Part> partsWithDecouplers) {
 
         logger.info("Checking if tanks are empty");
         try {
@@ -48,12 +47,22 @@ public class FuelUtils {
         }
     }
 
-    private static boolean areAnyTanksEmpty(SpaceCenter.Vessel vessel, List<SpaceCenter.Part> partsWithDecouplers) throws RPCException{
+    public static boolean areAnyTanksEmpty(SpaceCenter.Vessel vessel, List<SpaceCenter.Part> partsWithDecouplers) throws RPCException{
         for(SpaceCenter.Part part : partsWithDecouplers) {
-            List<SpaceCenter.Resource> resources = part.getResources().getAll();
-            for (SpaceCenter.Resource resource : resources) {
-                if (resource.getAmount() == 0) {
-                    return true;
+            // only check the stage higher than the current stage)
+            // This will save a few RPCs to the server for part.getResources().getAll()
+            // currentStage - 1 = nextStage
+            if(part.getDecoupleStage() >= vessel.getControl().getCurrentStage() - 1) {
+                logger.info("[INFO] Checking if part {} is empty with decouple stage {} and vessel current stage {}",
+                        part.getName(),
+                        part.getDecoupleStage(),
+                        vessel.getControl().getCurrentStage());
+                List<SpaceCenter.Resource> resources = part.getResources().getAll();
+                for (SpaceCenter.Resource resource : resources) {
+                    if (resource.getAmount() == 0) {
+                        logger.info("[INFO] Part {} is empty", part.getName());
+                        return true;
+                    }
                 }
             }
         }
