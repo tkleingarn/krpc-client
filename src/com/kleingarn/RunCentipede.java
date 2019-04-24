@@ -24,7 +24,7 @@ public class RunCentipede {
     // The threshold at which the autopilot will try to match the target roll angle, if any. Defaults to 5 degrees.
     final static double rollThreshold = 5.0;
 
-    final static int leadPollingIntervalMillis = 100;
+    final static int leadPollingIntervalMillis = 1000;
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
@@ -63,6 +63,18 @@ public class RunCentipede {
                     squad.removeVesselFromSquadron(vessel);
                 }
             }
+
+            if(leadVessel.getControl().getActionGroup(2)) {
+                logger.info("Action group 1 is {}, decoupling all decouplers", leadVessel.getControl().getActionGroup(2));
+                leadVessel.getControl().setActionGroup(2, false);
+                for(SpaceCenter.Vessel vessel : squad.getSquadronVessels()) {
+                    List<SpaceCenter.Decoupler> allDecouplers = vessel.getParts().getDecouplers();
+                    for(SpaceCenter.Decoupler decoupler : allDecouplers) {
+                        decoupler.decouple();
+                    }
+                }
+            }
+
             sleep(leadPollingIntervalMillis);
         }
 //        SpaceCenter.Control leadControl = leader.getControl();
@@ -75,6 +87,7 @@ public class RunCentipede {
         try {
             vesselControl.setBrakes(leadControl.getBrakes());
             vesselControl.setSAS(leadControl.getSAS());
+            vesselControl.setSASMode(leadControl.getSASMode());
             vesselControl.setGear(leadControl.getGear());
             vesselControl.setThrottle(leadControl.getThrottle());
 
