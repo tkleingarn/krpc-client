@@ -62,11 +62,20 @@ public class RunCentipede {
                     logger.error("[ERROR] No such vessel, removing from squadron");
                     squad.removeVesselFromSquadron(vessel);
                 }
+
+                for (int i=0; i<10; i++) {
+                    try {
+                        setActionGroupsOnSquadron(i, leadVessel.getControl().getActionGroup(i), squad.getSquadronVessels());
+                    } catch (IllegalArgumentException e) {
+                        logger.error("Caught IllegalArgumentException, removed vessel from squadron" + i);
+                        e.printStackTrace();
+                    }
+                }
             }
 
-            if(leadVessel.getControl().getActionGroup(2)) {
-                logger.info("Action group 1 is {}, decoupling all decouplers", leadVessel.getControl().getActionGroup(2));
-                leadVessel.getControl().setActionGroup(2, false);
+            if(leadVessel.getControl().getActionGroup(7)) {
+                logger.info("Action group 1 is {}, decoupling all decouplers", leadVessel.getControl().getActionGroup(7));
+                leadVessel.getControl().setActionGroup(7, false);
                 for(SpaceCenter.Vessel vessel : squad.getSquadronVessels()) {
                     List<SpaceCenter.Decoupler> allDecouplers = vessel.getParts().getDecouplers();
                     for(SpaceCenter.Decoupler decoupler : allDecouplers) {
@@ -91,8 +100,13 @@ public class RunCentipede {
             vesselControl.setGear(leadControl.getGear());
             vesselControl.setThrottle(leadControl.getThrottle());
 
-//            vesselControl.setInputMode(SpaceCenter.ControlInputMode.OVERRIDE);
-//            vesselControl.setPitch(leadControl.getPitch());
+//            if(leadControl.getActionGroup(3)) {
+//                vesselControl.setInputMode(SpaceCenter.ControlInputMode.OVERRIDE);
+//                vesselControl.setPitch(-1);
+//            } else {
+//                vesselControl.setInputMode(SpaceCenter.ControlInputMode.ADDITIVE);
+//                vesselControl.setPitch(0);
+//            }
 //            vesselControl.setWheelThrottle(leadControl.getWheelThrottle());
             vesselControl.setWheelThrottle(leadControl.getThrottle());
 //            vesselControl.setInputMode(SpaceCenter.ControlInputMode.ADDITIVE);
