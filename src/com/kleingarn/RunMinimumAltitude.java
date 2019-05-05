@@ -18,9 +18,9 @@ public class RunMinimumAltitude {
 
     final static Logger logger = LoggerFactory.getLogger(RunMinimumAltitude.class);
 
-    final static int pollingIntervalMillis = 1000;
-    final static double minAltitudeAboveSurface = 1;
-    final static double maxAltitudeAboveSurface = 2;
+    final static int pollingIntervalMillis = 500;
+    final static double minAltitudeAboveSurface = 5;
+    final static double maxAltitudeAboveSurface = 6;
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
@@ -34,19 +34,28 @@ public class RunMinimumAltitude {
         SpaceCenter.Control vesselControl = vessel.getControl();
 
         SpaceCenter.Flight vesselFlight = vessel.flight(vessel.getSurfaceReferenceFrame());
-        double surfaceAltitude = vesselFlight.getSurfaceAltitude();
+        double surfaceAltitude;
 
         while (true) {
             // if min flight mode activated
             if (vesselControl.getActionGroup(5)) {
-
                 surfaceAltitude = vesselFlight.getSurfaceAltitude();
-
+                logger.info("Min flight mode active, surface altitude is: {}", surfaceAltitude);
                 if(surfaceAltitude > maxAltitudeAboveSurface) {
-                    vesselControl.setActionGroup(1, true);
-                } else {
-                    vesselControl.setActionGroup(1, false);
+                    // vesselControl.setActionGroup(1, true); // not this simple
+                    // need to:
+                    // 1) switch to docking mode
+
+                    // 2) activate the 'i' key for downward RCS, or possibly 'w' for pitch down while in docking mode
+                    vesselControl.setUp(-1);
+                    logger.info("setUp -1 to descend");
+                } else if (surfaceAltitude <= minAltitudeAboveSurface) {
+                    vesselControl.setUp(1);
+                    logger.info("setUp 1 to climb");
                 }
+            } else {
+                vesselControl.setUp(0);
+                vesselControl.setActionGroup(1, false);
             }
            sleep(pollingIntervalMillis);
         }
