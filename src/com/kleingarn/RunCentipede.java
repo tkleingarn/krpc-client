@@ -24,7 +24,7 @@ public class RunCentipede {
     // The threshold at which the autopilot will try to match the target roll angle, if any. Defaults to 5 degrees.
     final static double rollThreshold = 5.0;
 
-    final static int leadPollingIntervalMillis = 100;
+    final static int leadPollingIntervalMillis = 1000;
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
@@ -62,7 +62,32 @@ public class RunCentipede {
                     logger.error("[ERROR] No such vessel, removing from squadron");
                     squad.removeVesselFromSquadron(vessel);
                 }
+
+                for (int i=0; i<10; i++) {
+                    try {
+                        setActionGroupsOnSquadron(i, leadVessel.getControl().getActionGroup(i), squad.getSquadronVessels());
+                    } catch (IllegalArgumentException e) {
+                        logger.error("Caught IllegalArgumentException, removed vessel from squadron" + i);
+                        e.printStackTrace();
+                    }
+                }
             }
+
+            if(leadVessel.getControl().getActionGroup(7)) {
+                logger.info("Action group 1 is {}, decoupling all decouplers", leadVessel.getControl().getActionGroup(7));
+                leadVessel.getControl().setActionGroup(7, false);
+                for(SpaceCenter.Vessel vessel : squad.getSquadronVessels()) {
+                    List<SpaceCenter.Decoupler> allDecouplers = vessel.getParts().getDecouplers();
+                    for(SpaceCenter.Decoupler decoupler : allDecouplers) {
+                        decoupler.decouple();
+                    }
+                }
+            }
+
+            if(leadVessel.getControl().getActionGroup(9)) {
+                deployChutes(squad.getSquadronVessels());
+            }
+
             sleep(leadPollingIntervalMillis);
         }
 //        SpaceCenter.Control leadControl = leader.getControl();
@@ -75,11 +100,17 @@ public class RunCentipede {
         try {
             vesselControl.setBrakes(leadControl.getBrakes());
             vesselControl.setSAS(leadControl.getSAS());
+            vesselControl.setSASMode(leadControl.getSASMode());
             vesselControl.setGear(leadControl.getGear());
             vesselControl.setThrottle(leadControl.getThrottle());
 
-//            vesselControl.setInputMode(SpaceCenter.ControlInputMode.OVERRIDE);
-//            vesselControl.setPitch(leadControl.getPitch());
+//            if(leadControl.getActionGroup(3)) {
+//                vesselControl.setInputMode(SpaceCenter.ControlInputMode.OVERRIDE);
+//                vesselControl.setPitch(-1);
+//            } else {
+//                vesselControl.setInputMode(SpaceCenter.ControlInputMode.ADDITIVE);
+//                vesselControl.setPitch(0);
+//            }
 //            vesselControl.setWheelThrottle(leadControl.getWheelThrottle());
             vesselControl.setWheelThrottle(leadControl.getThrottle());
 //            vesselControl.setInputMode(SpaceCenter.ControlInputMode.ADDITIVE);
