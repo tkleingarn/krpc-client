@@ -84,6 +84,10 @@ public class RunCentipede {
                 }
             }
 
+            if(leadVessel.getControl().getActionGroup(9)) {
+                deployChutes(squad.getSquadronVessels());
+            }
+
             sleep(leadPollingIntervalMillis);
         }
 //        SpaceCenter.Control leadControl = leader.getControl();
