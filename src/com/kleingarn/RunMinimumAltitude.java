@@ -18,9 +18,9 @@ public class RunMinimumAltitude {
 
     final static Logger logger = LoggerFactory.getLogger(RunMinimumAltitude.class);
 
-    final static int pollingIntervalMillis = 500;
-    final static double minAltitudeAboveSurface = 5;
-    final static double maxAltitudeAboveSurface = 6;
+    final static int pollingIntervalMillis = 100;
+    final static double minAltitudeAboveSurface = 10; //100
+    final static double maxAltitudeAboveSurface = 15; //110
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
@@ -39,6 +39,7 @@ public class RunMinimumAltitude {
         while (true) {
             // if min flight mode activated
             if (vesselControl.getActionGroup(5)) {
+
                 surfaceAltitude = vesselFlight.getSurfaceAltitude();
                 logger.info("Min flight mode active, surface altitude is: {}", surfaceAltitude);
                 if(surfaceAltitude > maxAltitudeAboveSurface) {
@@ -47,15 +48,18 @@ public class RunMinimumAltitude {
                     // 1) switch to docking mode
 
                     // 2) activate the 'i' key for downward RCS, or possibly 'w' for pitch down while in docking mode
-                    vesselControl.setUp(-1);
+//                    vesselControl.setInputMode(SpaceCenter.ControlInputMode.OVERRIDE);
+//                    vesselControl.setUp(-1);
+                    vesselControl.setPitch(-0.19F);
                     logger.info("setUp -1 to descend");
                 } else if (surfaceAltitude <= minAltitudeAboveSurface) {
-                    vesselControl.setUp(1);
+//                    vesselControl.setInputMode(SpaceCenter.ControlInputMode.OVERRIDE);
+//                    vesselControl.setUp(0);
+                    vesselControl.setPitch(0.25F);
                     logger.info("setUp 1 to climb");
                 }
             } else {
-                vesselControl.setUp(0);
-                vesselControl.setActionGroup(1, false);
+                vesselControl.setInputMode(SpaceCenter.ControlInputMode.ADDITIVE);
             }
            sleep(pollingIntervalMillis);
         }
