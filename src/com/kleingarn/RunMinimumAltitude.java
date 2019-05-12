@@ -18,9 +18,9 @@ public class RunMinimumAltitude {
 
     final static Logger logger = LoggerFactory.getLogger(RunMinimumAltitude.class);
 
-    final static int pollingIntervalMillis = 100;
-    final static double minAltitudeAboveSurface = 10; //100
-    final static double maxAltitudeAboveSurface = 15; //110
+    final static int pollingIntervalMillis = 1000;
+    final static double minAltitudeAboveSurface = 2; //100
+    final static double maxAltitudeAboveSurface = 4; //110
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
@@ -34,36 +34,88 @@ public class RunMinimumAltitude {
         SpaceCenter.Control vesselControl = vessel.getControl();
 
         SpaceCenter.Flight vesselFlight = vessel.flight(vessel.getSurfaceReferenceFrame());
-        double surfaceAltitude;
+
+        double currentSurfaceAltitude;
+        double priorSurfaceAltitude = 200000;
+        double altititudeDiffThisInterval = 0.00;
+        float pitch = 0.00F;
+        float pitchChangePerInterval = 0.03F;
+        // float maxPitchChange = 0.15F;
+        float maxPitchChangeAscending = 0.05F;
+        float maxPitchChangeDescending = 0.15F;
+        double targetAltitudeChangePerPollingInterval = 0.10; //0.01m per 100ms interval
+        boolean descending = false;
 
         while (true) {
+            currentSurfaceAltitude = vesselFlight.getSurfaceAltitude();
+            priorSurfaceAltitude = currentSurfaceAltitude;
+
             // if min flight mode activated
             if (vesselControl.getActionGroup(5)) {
 
-                surfaceAltitude = vesselFlight.getSurfaceAltitude();
-                logger.info("Min flight mode active, surface altitude is: {}", surfaceAltitude);
-                if(surfaceAltitude > maxAltitudeAboveSurface) {
-                    // vesselControl.setActionGroup(1, true); // not this simple
-                    // need to:
-                    // 1) switch to docking mode
+                currentSurfaceAltitude = vesselFlight.getSurfaceAltitude();
+                logger.info("Flight mode active, surface altitude is: {}, prior surface altitude was {}", currentSurfaceAltitude, priorSurfaceAltitude);
 
-                    // 2) activate the 'i' key for downward RCS, or possibly 'w' for pitch down while in docking mode
-//                    vesselControl.setInputMode(SpaceCenter.ControlInputMode.OVERRIDE);
-//                    vesselControl.setUp(-1);
-                    vesselControl.setPitch(-0.19F);
-                    logger.info("setUp -1 to descend");
-                } else if (surfaceAltitude <= minAltitudeAboveSurface) {
+                // descend
+                if(currentSurfaceAltitude > maxAltitudeAboveSurface) {
+                    if(!descending) {
+                        pitch = 0;
+                        descending = true;
+                        logger.info("DESCENDING!!!");
+                    }
+                    // vesselControl.setPitch(-0.17F);
+                    if(altititudeDiffThisInterval < Math.abs(targetAltitudeChangePerPollingInterval)) {
+                        pitch = pitch - pitchChangePerInterval;
+                        if (pitch >= maxPitchChangeDescending) {
+                            pitch = maxPitchChangeDescending;
+                        }
+                    }
+                    logger.info("Setting negative pitch");
+                    vesselControl.setPitch(pitch);
+                    logger.info("Descending at {}", pitch);
+                } else if (currentSurfaceAltitude <= minAltitudeAboveSurface) {
 //                    vesselControl.setInputMode(SpaceCenter.ControlInputMode.OVERRIDE);
 //                    vesselControl.setUp(0);
-                    vesselControl.setPitch(0.25F);
-                    logger.info("setUp 1 to climb");
+//                    vesselControl.setPitch(0.25F);
+                    if(descending) {
+//                        pitch = 0;
+                        descending = false;
+                        logger.info("ASCENDING!!!");
+                    }
+                    if(altititudeDiffThisInterval < Math.abs(targetAltitudeChangePerPollingInterval)) {
+                        pitch = pitch + pitchChangePerInterval;
+                        if (pitch >= maxPitchChangeAscending) {
+                            pitch = maxPitchChangeAscending;
+                        }
+                    }
+                    vesselControl.setPitch(pitch);
+                    logger.info("Ascending at {}", pitch);
                 }
             } else {
                 vesselControl.setInputMode(SpaceCenter.ControlInputMode.ADDITIVE);
             }
-           sleep(pollingIntervalMillis);
+            sleep(pollingIntervalMillis);
+            priorSurfaceAltitude = vesselFlight.getSurfaceAltitude();
+            altititudeDiffThisInterval = currentSurfaceAltitude - priorSurfaceAltitude;
+            logger.info("Altitude diff this interval is {}", altititudeDiffThisInterval);
         }
     }
+
+
+    private static void graduallyAscend() {
+
+    }
+
+    private static void graduallyDescend() {
+
+        // target rate of descent is 0.01m per 100ms interval
+
+
+    }
+
+    // pitch larger and larger until you are increasing at target rate
+    // pitch less if your diff exceeds target rate
+
 
     private static void sleep (int sleepTimeInmillis) {
         try {
