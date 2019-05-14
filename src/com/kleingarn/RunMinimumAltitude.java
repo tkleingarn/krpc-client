@@ -19,8 +19,9 @@ public class RunMinimumAltitude {
     final static Logger logger = LoggerFactory.getLogger(RunMinimumAltitude.class);
 
     final static int pollingIntervalMillis = 1000;
-    final static double minAltitudeAboveSurface = 2; //100
-    final static double maxAltitudeAboveSurface = 4; //110
+    final static double minAltitudeAboveSurface = 4; //100
+    final static double maxAltitudeAboveSurface = 6; //110
+    final static double targetAltitudeAboveSurface = 20; //110
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
@@ -32,6 +33,7 @@ public class RunMinimumAltitude {
         // assume we are flying already
         SpaceCenter.Vessel vessel = spaceCenter.getActiveVessel();
         SpaceCenter.Control vesselControl = vessel.getControl();
+        SpaceCenter.AutoPilot vesselAutoPilot = vessel.getAutoPilot();
 
         SpaceCenter.Flight vesselFlight = vessel.flight(vessel.getSurfaceReferenceFrame());
 
@@ -39,10 +41,14 @@ public class RunMinimumAltitude {
         double priorSurfaceAltitude = 200000;
         double altititudeDiffThisInterval = 0.00;
         float pitch = 0.00F;
-        float pitchChangePerInterval = 0.03F;
+
+        float pitchChangePerIntervalDescending = 0.03F; // money on descent
+        float maxPitchChangeDescending = 0.30F;
+
         // float maxPitchChange = 0.15F;
-        float maxPitchChangeAscending = 0.05F;
-        float maxPitchChangeDescending = 0.15F;
+        float maxPitchChangeAscending = 0.001F;
+        float pitchChangePerIntervalAscending = 0.0005F;
+
         double targetAltitudeChangePerPollingInterval = 0.10; //0.01m per 100ms interval
         boolean descending = false;
 
@@ -53,46 +59,48 @@ public class RunMinimumAltitude {
             // if min flight mode activated
             if (vesselControl.getActionGroup(5)) {
 
+                vesselControl.setRoll(0);
                 currentSurfaceAltitude = vesselFlight.getSurfaceAltitude();
                 logger.info("Flight mode active, surface altitude is: {}, prior surface altitude was {}", currentSurfaceAltitude, priorSurfaceAltitude);
 
                 // descend
-                if(currentSurfaceAltitude > maxAltitudeAboveSurface) {
+                if(currentSurfaceAltitude > targetAltitudeAboveSurface) {
                     if(!descending) {
                         pitch = 0;
                         descending = true;
                         logger.info("DESCENDING!!!");
                     }
                     // vesselControl.setPitch(-0.17F);
-                    if(altititudeDiffThisInterval < Math.abs(targetAltitudeChangePerPollingInterval)) {
-                        pitch = pitch - pitchChangePerInterval;
-                        if (pitch >= maxPitchChangeDescending) {
-                            pitch = maxPitchChangeDescending;
-                        }
+                    if(altititudeDiffThisInterval < Math.abs(targetAltitudeChangePerPollingInterval)
+                            && Math.abs(pitch) <= maxPitchChangeDescending) {
+                        pitch = pitch - pitchChangePerIntervalDescending;
                     }
                     logger.info("Setting negative pitch");
                     vesselControl.setPitch(pitch);
+//                    vesselAutoPilot.setTargetPitch(pitch);
+//                    vesselAutoPilot.setTargetRoll(0);
                     logger.info("Descending at {}", pitch);
-                } else if (currentSurfaceAltitude <= minAltitudeAboveSurface) {
-//                    vesselControl.setInputMode(SpaceCenter.ControlInputMode.OVERRIDE);
-//                    vesselControl.setUp(0);
-//                    vesselControl.setPitch(0.25F);
+                } else if (currentSurfaceAltitude <= targetAltitudeAboveSurface) {
+
                     if(descending) {
-//                        pitch = 0;
+                        pitch = 0;
                         descending = false;
                         logger.info("ASCENDING!!!");
                     }
-                    if(altititudeDiffThisInterval < Math.abs(targetAltitudeChangePerPollingInterval)) {
-                        pitch = pitch + pitchChangePerInterval;
-                        if (pitch >= maxPitchChangeAscending) {
-                            pitch = maxPitchChangeAscending;
-                        }
+                    if(altititudeDiffThisInterval < Math.abs(targetAltitudeChangePerPollingInterval)
+                            && pitch <= maxPitchChangeAscending) {
+                        pitch = pitch + pitchChangePerIntervalAscending;
                     }
                     vesselControl.setPitch(pitch);
+//                    vesselAutoPilot.setTargetPitch(pitch);
+//                    vesselAutoPilot.setTargetRoll(0);
                     logger.info("Ascending at {}", pitch);
                 }
+//                vesselAutoPilot.engage();
             } else {
-                vesselControl.setInputMode(SpaceCenter.ControlInputMode.ADDITIVE);
+//                vesselControl.setInputMode(SpaceCenter.ControlInputMode.ADDITIVE);
+                logger.info("Normal flight");
+//                vesselAutoPilot.disengage();
             }
             sleep(pollingIntervalMillis);
             priorSurfaceAltitude = vesselFlight.getSurfaceAltitude();
@@ -100,7 +108,6 @@ public class RunMinimumAltitude {
             logger.info("Altitude diff this interval is {}", altititudeDiffThisInterval);
         }
     }
-
 
     private static void graduallyAscend() {
 
