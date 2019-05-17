@@ -19,9 +19,7 @@ public class RunMinimumAltitude {
     final static Logger logger = LoggerFactory.getLogger(RunMinimumAltitude.class);
 
     final static int pollingIntervalMillis = 1000;
-    final static double minAltitudeAboveSurface = 4; //100
-    final static double maxAltitudeAboveSurface = 6; //110
-    final static double targetAltitudeAboveSurface = 20; //110
+    final static double targetAltitudeAboveSurface = 2.5; //110
 
     public static void main(String[] args) throws IOException, RPCException {
         // init
@@ -46,8 +44,8 @@ public class RunMinimumAltitude {
         float maxPitchChangeDescending = 0.30F;
 
         // float maxPitchChange = 0.15F;
-        float maxPitchChangeAscending = 0.001F;
-        float pitchChangePerIntervalAscending = 0.0005F;
+        float maxPitchChangeAscending = 0.000001F;
+        float pitchChangePerIntervalAscending = 0.0000005F;
 
         double targetAltitudeChangePerPollingInterval = 0.10; //0.01m per 100ms interval
         boolean descending = false;
@@ -77,8 +75,6 @@ public class RunMinimumAltitude {
                     }
                     logger.info("Setting negative pitch");
                     vesselControl.setPitch(pitch);
-//                    vesselAutoPilot.setTargetPitch(pitch);
-//                    vesselAutoPilot.setTargetRoll(0);
                     logger.info("Descending at {}", pitch);
                 } else if (currentSurfaceAltitude <= targetAltitudeAboveSurface) {
 
@@ -92,15 +88,10 @@ public class RunMinimumAltitude {
                         pitch = pitch + pitchChangePerIntervalAscending;
                     }
                     vesselControl.setPitch(pitch);
-//                    vesselAutoPilot.setTargetPitch(pitch);
-//                    vesselAutoPilot.setTargetRoll(0);
                     logger.info("Ascending at {}", pitch);
                 }
-//                vesselAutoPilot.engage();
             } else {
-//                vesselControl.setInputMode(SpaceCenter.ControlInputMode.ADDITIVE);
                 logger.info("Normal flight");
-//                vesselAutoPilot.disengage();
             }
             sleep(pollingIntervalMillis);
             priorSurfaceAltitude = vesselFlight.getSurfaceAltitude();
@@ -108,21 +99,6 @@ public class RunMinimumAltitude {
             logger.info("Altitude diff this interval is {}", altititudeDiffThisInterval);
         }
     }
-
-    private static void graduallyAscend() {
-
-    }
-
-    private static void graduallyDescend() {
-
-        // target rate of descent is 0.01m per 100ms interval
-
-
-    }
-
-    // pitch larger and larger until you are increasing at target rate
-    // pitch less if your diff exceeds target rate
-
 
     private static void sleep (int sleepTimeInmillis) {
         try {
