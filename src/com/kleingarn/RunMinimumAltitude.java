@@ -49,6 +49,7 @@ public class RunMinimumAltitude {
 
         double targetAltitudeChangePerPollingInterval = 0.10; //0.01m per 100ms interval
         boolean descending = false;
+        int i = 0;
 
         while (true) {
             currentSurfaceAltitude = vesselFlight.getSurfaceAltitude();
@@ -92,11 +93,39 @@ public class RunMinimumAltitude {
                 }
             } else {
                 logger.info("Normal flight");
+                vesselControl.setPitch(0);
             }
             sleep(pollingIntervalMillis);
             priorSurfaceAltitude = vesselFlight.getSurfaceAltitude();
             altititudeDiffThisInterval = currentSurfaceAltitude - priorSurfaceAltitude;
             logger.info("Altitude diff this interval is {}", altititudeDiffThisInterval);
+            if(i == 30) {
+                applyCamera(spaceCenter);
+                i = 0;
+            }
+            i++;
+        }
+    }
+
+    private static void applyCamera(SpaceCenter spaceCenter) {
+
+        try {
+            // Camera minPitch = -91.67324 and maxPitch = 88.80845
+            SpaceCenter.Camera camera = spaceCenter.getCamera();
+            int randomHeading = ThreadLocalRandom.current().nextInt(
+                    0,
+                    360 + 1);
+            int randomPitch = ThreadLocalRandom.current().nextInt(
+                    -5,
+                    30 + 1);
+            int randomDistance = ThreadLocalRandom.current().nextInt(
+                    10,
+                     75 + 1);
+            camera.setHeading(randomHeading);
+            camera.setPitch(randomPitch);
+            camera.setDistance(randomDistance);
+        } catch(RPCException e){
+            e.printStackTrace();
         }
     }
 
